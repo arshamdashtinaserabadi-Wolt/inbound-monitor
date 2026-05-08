@@ -167,30 +167,63 @@ textarea{resize:vertical;min-height:62px;font-size:13px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px}
 ::-webkit-scrollbar-thumb:hover{background:var(--muted)}
+/* ── DESKTOP ── */
+@media(min-width:861px){
+  .mob-bottom-nav{display:none}
+  .mob-fab{display:none}
+}
+
+/* ── MOBILE ── */
 @media(max-width:860px){
   .main{grid-template-columns:1fr}
   .panel-right{display:none}
-  .panel-right.mobile-active{display:flex}
-  .mobile-tabs{display:flex}
+  .panel-right.mob-visible{display:flex;flex-direction:column}
+  .panel-left.mob-hidden{display:none}
+  /* push content above bottom nav */
+  .panel-left,.panel-right{padding-bottom:70px}
   header h1{font-size:14px}
-  .header-right{gap:6px}
-  .nav-btn{padding:5px 9px;font-size:11px}
+  .header-right{gap:5px}
+  .nav-btn,.live-date,#online-badge{display:none!important}
+  /* hide desktop log actions on mobile — use fab instead */
 }
-@media(min-width:861px){.mobile-tabs{display:none}}
-.mobile-tabs{
-  background:var(--surface);
-  border-bottom:1px solid var(--border);
+
+/* ── MOBILE BOTTOM NAV ── */
+.mob-bottom-nav{
   display:none;
+  position:fixed;bottom:0;left:0;right:0;
+  background:var(--surface);
+  border-top:1px solid var(--border);
+  z-index:90;
+  height:60px;
   flex-shrink:0;
 }
 .mob-tab{
-  flex:1;padding:11px 8px;
+  flex:1;height:100%;
   border:none;background:none;
-  color:var(--muted);font-family:'DM Mono',monospace;font-size:12px;
+  color:var(--muted);
+  font-family:'DM Mono',monospace;font-size:11px;
   cursor:pointer;transition:all .2s;
-  border-bottom:2px solid transparent;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  border-top:2px solid transparent;
+  -webkit-tap-highlight-color:transparent;
 }
-.mob-tab.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(168,230,61,.04)}
+.mob-tab .mob-tab-icon{font-size:20px;line-height:1}
+.mob-tab.active{color:var(--accent);border-top-color:var(--accent);background:rgba(168,230,61,.04)}
+
+/* ── FLOATING ADD BUTTON (visible on log tab) ── */
+.mob-fab{
+  display:none;
+  position:fixed;bottom:72px;right:18px;
+  width:56px;height:56px;
+  background:var(--accent);border:none;border-radius:50%;
+  font-size:28px;color:#0e0f0e;font-weight:700;
+  cursor:pointer;z-index:91;
+  box-shadow:0 4px 16px rgba(168,230,61,.35);
+  align-items:center;justify-content:center;
+  transition:transform .2s,box-shadow .2s;
+  -webkit-tap-highlight-color:transparent;
+}
+.mob-fab:active{transform:scale(.92);box-shadow:0 2px 8px rgba(168,230,61,.2)}
 </style>
 </head>
 <body>
@@ -200,17 +233,11 @@ textarea{resize:vertical;min-height:62px;font-size:13px}
   <h1>Articole Respinse — Inbound</h1>
   <div class="header-right">
     <button class="nav-btn" id="nav-entry" onclick="setView('entry')" style="display:none">← Înregistrare</button>
-    <button class="nav-btn" id="nav-db" onclick="setView('db')">⚙ Bază de date</button>
+    <button class="nav-btn" id="nav-db" onclick="openDBWithPassword()">⚙ Bază de date</button>
     <span id="online-badge" style="font-family:'DM Mono',monospace;font-size:11px;background:rgba(111,207,151,.1);color:var(--accent2);padding:4px 10px;border-radius:20px;border:1px solid rgba(111,207,151,.2)">📊 Sheets activ</span>
     <span class="live-date" id="live-date"></span>
   </div>
 </header>
-
-<!-- ══════════════ MOBILE TABS ══════════════ -->
-<div class="mobile-tabs" id="mobile-tabs">
-  <button class="mob-tab active" id="mobtab-form" onclick="setMobileTab('form')">📝 Înregistrare</button>
-  <button class="mob-tab" id="mobtab-log" onclick="setMobileTab('log')">📋 Jurnal</button>
-</div>
 
 <!-- ══════════════ ENTRY VIEW ══════════════ -->
 <div class="view active" id="view-entry">
@@ -431,6 +458,38 @@ textarea{resize:vertical;min-height:62px;font-size:13px}
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- ══════════════ MOBILE BOTTOM NAV ══════════════ -->
+<nav class="mob-bottom-nav" id="mob-bottom-nav">
+  <button class="mob-tab active" id="mobtab-form" onclick="setMobileTab('form')">
+    <span class="mob-tab-icon">📝</span>
+    <span>Înregistrare</span>
+  </button>
+  <button class="mob-tab" id="mobtab-log" onclick="setMobileTab('log')">
+    <span class="mob-tab-icon">📋</span>
+    <span id="mobtab-log-label">Jurnal</span>
+  </button>
+</nav>
+
+<!-- FLOATING ADD BUTTON -->
+<button class="mob-fab" id="mob-fab" onclick="setMobileTab('form')" title="Adaugă înregistrare">＋</button>
+
+<!-- ══════════════ DB PASSWORD MODAL ══════════════ -->
+<div class="modal-overlay" id="modal-password">
+  <div class="modal-box" style="max-width:340px">
+    <h3>🔒 Acces restricționat</h3>
+    <p style="font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);margin-bottom:16px">Introduceți parola pentru a accesa baza de date.</p>
+    <div class="mf">
+      <label>Parolă</label>
+      <input type="password" id="db-password-input" placeholder="••••••••" autocomplete="new-password" autocorrect="off" autocapitalize="off">
+    </div>
+    <div id="db-password-error" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--danger);min-height:16px;margin-top:-6px;margin-bottom:8px"></div>
+    <div class="modal-actions">
+      <button class="mbtn cancel" type="button" onclick="closePasswordModal()">Anulează</button>
+      <button class="mbtn save" type="button" onclick="checkDBPassword()">Intră</button>
+    </div>
+  </div>
+</div>
 
 <script>
 // ═══════════════════════════════════════════════════════════════
@@ -840,9 +899,10 @@ function submitEntry() {
   saveEntries(); renderLog();
   syncToSheets(entries[0]);
   showToast('✓ Înregistrare adăugată');
-  // On mobile, switch to log tab so user sees their entry
-  if (window.innerWidth <= 860) {
-    setTimeout(function() { setMobileTab('log'); }, 600);
+  // On mobile, update log badge immediately; switch to log after short delay
+  if (isMobile()) {
+    updateMobLogBadge();
+    setTimeout(function() { setMobileTab('log'); }, 500);
   }
   clearProduct();
   document.getElementById('reason-text').value = '';
@@ -1205,23 +1265,67 @@ setInterval(updDate, 30000);
 renderLog();
 initOfflineQueue();
 initOnlineStatus();
+initMobileNav();
+
+// password functions in separate script tag below
+window.addEventListener('resize', function() {
+  if (!isMobile()) {
+    // Reset mobile state when going back to desktop
+    var form = document.querySelector('.panel-left');
+    var log  = document.querySelector('.panel-right');
+    form.classList.remove('mob-hidden');
+    log.classList.remove('mob-visible');
+    document.getElementById('mob-bottom-nav').style.display = 'none';
+    document.getElementById('mob-fab').style.display = 'none';
+  } else {
+    initMobileNav();
+  }
+});
 
 // ═══════════════════════════════════════════════════════════════
-// MOBILE TABS
+// MOBILE BOTTOM NAV
 // ═══════════════════════════════════════════════════════════════
+function isMobile() { return window.innerWidth <= 860; }
+
+function initMobileNav() {
+  if (!isMobile()) return;
+  document.getElementById('mob-bottom-nav').style.display = 'flex';
+  setMobileTab('form'); // start on form tab
+}
+
 function setMobileTab(tab) {
+  if (!isMobile()) return;
+
   var form = document.querySelector('.panel-left');
   var log  = document.querySelector('.panel-right');
-  document.getElementById('mobtab-form').className = 'mob-tab' + (tab === 'form' ? ' active' : '');
-  document.getElementById('mobtab-log').className  = 'mob-tab' + (tab === 'log'  ? ' active' : '');
+  var fab  = document.getElementById('mob-fab');
+  var tabForm = document.getElementById('mobtab-form');
+  var tabLog  = document.getElementById('mobtab-log');
+
   if (tab === 'form') {
-    form.style.display = '';
-    log.classList.remove('mobile-active');
+    // Show form, hide log
+    form.classList.remove('mob-hidden');
+    log.classList.remove('mob-visible');
+    tabForm.className = 'mob-tab active';
+    tabLog.className  = 'mob-tab';
+    fab.style.display = 'none';
   } else {
-    form.style.display = 'none';
-    log.classList.add('mobile-active');
+    // Show log, hide form
+    form.classList.add('mob-hidden');
+    log.classList.add('mob-visible');
+    tabForm.className = 'mob-tab';
+    tabLog.className  = 'mob-tab active';
+    fab.style.display = 'flex';
     renderLog();
+    updateMobLogBadge();
   }
+}
+
+function updateMobLogBadge() {
+  var today = todayISO();
+  var todayCount = entries.filter(function(e) { return e.deliveryDate === today; }).length;
+  var lbl = document.getElementById('mobtab-log-label');
+  if (lbl) lbl.textContent = todayCount > 0 ? 'Jurnal (' + todayCount + ')' : 'Jurnal';
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1357,6 +1461,46 @@ function closeScanner() {
   }
 }
 
+</script>
+<script>
+// ── PASSWORD PROTECTION — standalone, isolated scope ──
+var DB_PW = "Vitan96";
+
+function openDBWithPassword() {
+  document.getElementById("db-password-input").value = "";
+  document.getElementById("db-password-error").textContent = "";
+  document.getElementById("modal-password").classList.add("open");
+  setTimeout(function() {
+    document.getElementById("db-password-input").focus();
+  }, 150);
+}
+
+function checkDBPassword() {
+  var entered = document.getElementById("db-password-input").value.trim();
+  if (entered === DB_PW) {
+    document.getElementById("modal-password").classList.remove("open");
+    document.getElementById("db-password-input").value = "";
+    setView("db");
+  } else {
+    document.getElementById("db-password-error").textContent = "✕ Parolă incorectă";
+    document.getElementById("db-password-input").value = "";
+    document.getElementById("db-password-input").style.borderColor = "var(--danger)";
+    setTimeout(function() {
+      document.getElementById("db-password-input").style.borderColor = "";
+      document.getElementById("db-password-input").focus();
+    }, 300);
+  }
+}
+
+function closePasswordModal() {
+  document.getElementById("modal-password").classList.remove("open");
+  document.getElementById("db-password-input").value = "";
+  document.getElementById("db-password-error").textContent = "";
+}
+
+document.getElementById("db-password-input").addEventListener("keydown", function(e) {
+  if (e.key === "Enter") { e.preventDefault(); checkDBPassword(); }
+});
 </script>
 </body>
 </html>
