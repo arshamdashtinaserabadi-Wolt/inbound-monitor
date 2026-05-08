@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Articole Respinse — Inbound Monitor</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@600;700;800&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{--bg:#0e0f0e;--surface:#161817;--surface2:#1e201e;--border:#2a2d2a;--accent:#a8e63d;--accent2:#6fcf97;--danger:#ff6b6b;--warn:#f5a623;--text:#e8ebe8;--muted:#6b7068;--card:#191b19;--carne:#e8925a;--fv:#6fcf97}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;display:flex;flex-direction:column}
+header{padding:13px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;background:var(--surface);position:sticky;top:0;z-index:100}
+.logo-mark{width:34px;height:34px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-weight:800;font-size:12px;color:#0e0f0e;flex-shrink:0}
+header h1{font-family:'Syne',sans-serif;font-weight:700;font-size:16px;letter-spacing:-.3px}
+.header-right{margin-left:auto;display:flex;align-items:center;gap:9px}
+.live-date{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;background:var(--surface2);padding:4px 10px;border-radius:20px;border:1px solid var(--border)}
+.cat-toggle{display:flex;background:var(--surface2);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.cat-btn{padding:6px 13px;border:none;background:none;color:var(--muted);font-family:'DM Mono',monospace;font-size:12px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px}
+.cat-btn.active-fv{background:rgba(111,207,151,.15);color:var(--fv)}
+.cat-btn.active-carne{background:rgba(232,146,90,.15);color:var(--carne)}
+.cat-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dot-fv{background:var(--fv)}.dot-carne{background:var(--carne)}
+.nav-btn{padding:6px 13px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--muted);font-family:'DM Mono',monospace;font-size:12px;cursor:pointer;transition:all .15s}
+.nav-btn:hover,.nav-btn.active-nav{border-color:var(--accent);color:var(--accent);background:rgba(168,230,61,.06)}
+.view{display:none;flex:1;min-height:0}
+.view.active{display:flex}
+/* ENTRY VIEW */
+#view-entry{flex-direction:row}
+.main{display:grid;grid-template-columns:385px 1fr;width:100%;min-height:calc(100vh - 63px)}
+.panel-left{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
+.panel-section{padding:16px 22px;border-bottom:1px solid var(--border)}
+.panel-section:last-child{border-bottom:none}
+.section-label{font-family:'DM Mono',monospace;font-size:10px;font-weight:500;color:var(--muted);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.step-badge{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;background:var(--accent);color:#0e0f0e}
+.step-badge.done{background:var(--accent2)}.step-badge.inactive{background:var(--border);color:var(--muted)}
+input[type=date],input[type=text],input[type=number],textarea{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:14px;padding:10px 12px;border-radius:8px;outline:none;transition:border-color .2s}
+input:focus,textarea:focus{border-color:var(--accent)}
+.search-wrap{position:relative}
+.search-wrap input{padding-right:36px}
+.search-icon{position:absolute;right:11px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:15px;pointer-events:none}
+.dropdown-list{position:absolute;top:100%;left:0;right:0;background:var(--card);border:1px solid var(--accent);border-top:none;border-radius:0 0 8px 8px;max-height:260px;overflow-y:auto;z-index:50;display:none}
+.dropdown-list.open{display:block}
+.dd-item{padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .12s}
+.dd-item:last-child{border-bottom:none}
+.dd-item:hover{background:var(--surface2)}
+.dd-name{font-size:13px;color:var(--text);margin-bottom:3px}
+.dd-meta{font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;display:flex;gap:8px;flex-wrap:wrap}
+.dd-vc{color:var(--warn)}.dd-gi{color:var(--accent2)}.dd-unit-kg{color:var(--warn)}.dd-unit-buc{color:var(--accent2)}
+.selected-product{background:var(--surface2);border:1px solid var(--accent);border-radius:8px;padding:11px 13px;margin-top:10px;display:none}
+.selected-product.visible{display:block}
+.prod-name{font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px}
+.prod-meta{font-size:11px;font-family:'DM Mono',monospace;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap}
+.pm-code{color:var(--accent)}.pm-vc{color:var(--warn)}.pm-gi{color:var(--accent2)}.pm-fv{color:var(--fv)}.pm-carne{color:var(--carne)}
+.change-btn{background:none;border:none;color:var(--muted);font-size:11px;font-family:'DM Mono',monospace;cursor:pointer;padding:0;margin-top:5px;text-decoration:underline}
+.change-btn:hover{color:var(--text)}
+.unit-selector{display:flex;gap:8px}
+.unit-btn{flex:1;padding:14px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--muted);font-family:'DM Mono',monospace;font-size:14px;cursor:pointer;transition:all .2s;text-align:center;-webkit-tap-highlight-color:transparent}
+.unit-btn:hover{border-color:var(--muted);color:var(--text)}
+.unit-btn.active{background:var(--accent);border-color:var(--accent);color:#0e0f0e;font-weight:500}
+.qty-row{display:flex;gap:8px;align-items:center}
+.qty-row input{flex:1;font-size:22px;text-align:center;padding:11px;font-weight:500}
+.qty-btn{width:48px;height:48px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;-webkit-tap-highlight-color:transparent}
+.qty-btn:hover{border-color:var(--accent);color:var(--accent)}
+.unit-display{font-family:'DM Mono',monospace;font-size:14px;color:var(--muted);width:30px;text-align:center;flex-shrink:0}
+.reason-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.reason-chip{padding:8px 12px;border:1px solid var(--border);border-radius:20px;background:var(--surface2);color:var(--muted);font-size:12px;cursor:pointer;transition:all .15s;font-family:'DM Mono',monospace;-webkit-tap-highlight-color:transparent}
+.reason-chip:hover{border-color:var(--accent);color:var(--text)}
+.reason-chip.selected{background:var(--accent);border-color:var(--accent);color:#0e0f0e}
+textarea{resize:vertical;min-height:62px;font-size:13px}
+.submit-btn{width:100%;padding:13px;background:var(--accent);border:none;border-radius:10px;color:#0e0f0e;font-family:'Syne',sans-serif;font-weight:700;font-size:15px;cursor:pointer;transition:all .2s}
+.submit-btn:hover{background:#bef55a;transform:translateY(-1px)}
+.submit-btn:active{transform:translateY(0)}
+.submit-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+/* RIGHT LOG */
+.panel-right{display:flex;flex-direction:column;overflow:hidden}
+.log-header{padding:13px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px;background:var(--surface);flex-shrink:0;flex-wrap:wrap}
+.log-header h2{font-family:'Syne',sans-serif;font-size:15px;font-weight:700}
+.log-count{background:var(--accent);color:#0e0f0e;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;font-family:'DM Mono',monospace}
+.log-actions{margin-left:auto;display:flex;gap:7px;flex-wrap:wrap}
+.log-action-btn{padding:7px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:12px;cursor:pointer;font-family:'DM Mono',monospace;transition:all .15s;white-space:nowrap}
+.log-action-btn:hover{border-color:var(--accent);color:var(--accent)}
+.excel-btn{border-color:rgba(168,230,61,.35)!important;color:var(--accent)!important}
+.excel-btn:hover{background:rgba(168,230,61,.08)!important}
+.filter-bar{padding:10px 22px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;gap:6px;align-items:center;flex-shrink:0}
+.filter-tab{padding:5px 12px;border:1px solid var(--border);border-radius:20px;background:none;color:var(--muted);font-size:11px;font-family:'DM Mono',monospace;cursor:pointer;transition:all .15s}
+.filter-tab:hover{color:var(--text);border-color:var(--muted)}
+.filter-tab.ft-active{background:var(--surface2);color:var(--text);border-color:var(--muted)}
+.filter-tab.ft-fv{border-color:var(--fv);color:var(--fv);background:rgba(111,207,151,.08)}
+.filter-tab.ft-carne{border-color:var(--carne);color:var(--carne);background:rgba(232,146,90,.08)}
+.stats-bar{display:flex;gap:12px;padding:14px 22px;flex-shrink:0}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;flex:1;min-width:0}
+.stat-label{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;letter-spacing:.5px;margin-bottom:2px}
+.stat-value{font-family:'Syne',sans-serif;font-size:20px;font-weight:700}
+.stat-sub{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:1px}
+.log-body{flex:1;overflow-y:auto;padding:0 22px 16px}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:240px;color:var(--muted);gap:10px}
+.empty-icon{font-size:40px;opacity:.3}
+.empty-state p{font-size:13px;font-family:'DM Mono',monospace}
+.log-table{width:100%;border-collapse:collapse}
+.log-table th{text-align:left;font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;padding:8px 9px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);white-space:nowrap}
+.log-table td{padding:9px 9px;font-size:12px;border-bottom:1px solid var(--border);vertical-align:middle}
+.log-table tr:last-child td{border-bottom:none}
+.log-table tr{transition:background .12s;animation:rowIn .2s ease both}
+@keyframes rowIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+.log-table tr:hover td{background:var(--surface2)}
+.qty-cell{font-family:'DM Mono',monospace;font-weight:500;font-size:13px;color:var(--accent);white-space:nowrap}
+.date-cell{font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);white-space:nowrap}
+.code-cell{font-family:'DM Mono',monospace;font-size:11px;color:var(--accent2);white-space:nowrap}
+.vc-cell{font-family:'DM Mono',monospace;font-size:11px;color:var(--warn);white-space:nowrap}
+.cat-pill{display:inline-block;font-size:10px;padding:2px 7px;border-radius:10px;font-family:'DM Mono',monospace;white-space:nowrap}
+.cp-fv{background:rgba(111,207,151,.12);color:var(--fv);border:1px solid rgba(111,207,151,.2)}
+.cp-carne{background:rgba(232,146,90,.12);color:var(--carne);border:1px solid rgba(232,146,90,.2)}
+.reason-tag{display:inline-block;background:rgba(255,107,107,.1);color:var(--danger);border:1px solid rgba(255,107,107,.18);border-radius:20px;font-size:11px;padding:3px 9px;font-family:'DM Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px}
+.del-btn{background:none;border:1px solid transparent;color:var(--muted);cursor:pointer;font-size:13px;padding:3px 7px;border-radius:6px;transition:all .15s;line-height:1}
+.del-btn:hover{border-color:var(--danger);color:var(--danger);background:rgba(255,107,107,.08)}
+.name-cell{max-width:175px}
+.name-cell span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.step-locked{opacity:.4;pointer-events:none;user-select:none}
+/* DB VIEW */
+#view-db{flex-direction:column;background:var(--bg);min-height:calc(100vh - 63px)}
+.db-toolbar{padding:16px 24px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap;flex-shrink:0}
+.db-toolbar h2{font-family:'Syne',sans-serif;font-size:15px;font-weight:700}
+.db-count-badge{background:var(--surface2);color:var(--muted);font-size:11px;padding:2px 8px;border-radius:20px;font-family:'DM Mono',monospace;border:1px solid var(--border)}
+.db-actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.db-btn{padding:7px 14px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:12px;cursor:pointer;font-family:'DM Mono',monospace;transition:all .15s;white-space:nowrap}
+.db-btn:hover{border-color:var(--accent);color:var(--accent)}
+.db-btn.danger{color:var(--danger)}
+.db-btn.danger:hover{border-color:var(--danger);background:rgba(255,107,107,.08)}
+.db-search-bar{padding:10px 24px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:center;flex-shrink:0;flex-wrap:wrap}
+.db-cat-tabs{display:flex;gap:6px}
+.db-tab{padding:5px 13px;border:1px solid var(--border);border-radius:20px;background:none;color:var(--muted);font-size:11px;font-family:'DM Mono',monospace;cursor:pointer;transition:all .15s}
+.db-tab:hover{color:var(--text)}
+.db-tab.dt-active{background:var(--surface2);color:var(--text);border-color:var(--muted)}
+.db-tab.dt-fv{border-color:var(--fv);color:var(--fv);background:rgba(111,207,151,.08)}
+.db-tab.dt-carne{border-color:var(--carne);color:var(--carne);background:rgba(232,146,90,.08)}
+.db-body{flex:1;overflow-y:auto;padding:16px 24px}
+.db-table{width:100%;border-collapse:collapse}
+.db-table th{text-align:left;font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;padding:8px 10px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);white-space:nowrap}
+.db-table td{padding:9px 10px;font-size:12px;border-bottom:1px solid var(--border);vertical-align:middle}
+.db-table tr:last-child td{border-bottom:none}
+.db-table tr:hover td{background:var(--surface2)}
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:none;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:460px;width:90%;max-height:88vh;overflow-y:auto}
+.modal-box h3{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:16px}
+.mf{margin-bottom:13px}
+.mf label{display:block;font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);margin-bottom:5px;letter-spacing:.5px;text-transform:uppercase}
+.mf input,.mf select{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:13px;padding:9px 11px;border-radius:8px;outline:none;transition:border-color .2s}
+.mf input:focus,.mf select:focus{border-color:var(--accent)}
+.modal-actions{display:flex;gap:9px;margin-top:18px;justify-content:flex-end}
+.mbtn{padding:9px 18px;border-radius:8px;font-family:'DM Mono',monospace;font-size:13px;cursor:pointer;transition:all .15s;border:1px solid var(--border)}
+.mbtn.cancel{background:var(--surface2);color:var(--muted)}
+.mbtn.cancel:hover{color:var(--text)}
+.mbtn.save{background:var(--accent);border-color:var(--accent);color:#0e0f0e;font-weight:600}
+.mbtn.save:hover{background:#bef55a}
+.import-hint{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;font-size:12px;font-family:'DM Mono',monospace;color:var(--muted);line-height:1.8;margin-bottom:8px}
+.import-hint b{color:var(--text)}
+.import-preview{font-family:'DM Mono',monospace;font-size:12px;color:var(--accent2);margin-top:8px;min-height:20px}
+/* TOAST */
+.toast{position:fixed;bottom:22px;right:22px;padding:11px 18px;border-radius:10px;font-family:'Syne',sans-serif;font-weight:700;font-size:13px;z-index:999;transform:translateY(80px);opacity:0;transition:all .3s cubic-bezier(.34,1.56,.64,1);max-width:300px;background:var(--accent);color:#0e0f0e}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.terror{background:var(--danger);color:#fff}
+.toast.tinfo{background:var(--surface);color:var(--text);border:1px solid var(--border)}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px}
+::-webkit-scrollbar-thumb:hover{background:var(--muted)}
+@media(max-width:860px){
+  .main{grid-template-columns:1fr}
+  .panel-right{display:none}
+  .panel-right.mobile-active{display:flex}
+  .mobile-tabs{display:flex}
+  header h1{font-size:14px}
+  .header-right{gap:6px}
+  .nav-btn{padding:5px 9px;font-size:11px}
+}
+@media(min-width:861px){.mobile-tabs{display:none}}
+.mobile-tabs{
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  display:none;
+  flex-shrink:0;
+}
+.mob-tab{
+  flex:1;padding:11px 8px;
+  border:none;background:none;
+  color:var(--muted);font-family:'DM Mono',monospace;font-size:12px;
+  cursor:pointer;transition:all .2s;
+  border-bottom:2px solid transparent;
+}
+.mob-tab.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(168,230,61,.04)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-mark">INB</div>
+  <h1>Articole Respinse — Inbound</h1>
+  <div class="header-right">
+    <button class="nav-btn" id="nav-entry" onclick="setView('entry')" style="display:none">← Înregistrare</button>
+    <button class="nav-btn" id="nav-db" onclick="setView('db')">⚙ Bază de date</button>
+    <span id="online-badge" style="font-family:'DM Mono',monospace;font-size:11px;background:rgba(111,207,151,.1);color:var(--accent2);padding:4px 10px;border-radius:20px;border:1px solid rgba(111,207,151,.2)">📊 Sheets activ</span>
+    <span class="live-date" id="live-date"></span>
+  </div>
+</header>
+
+<!-- ══════════════ MOBILE TABS ══════════════ -->
+<div class="mobile-tabs" id="mobile-tabs">
+  <button class="mob-tab active" id="mobtab-form" onclick="setMobileTab('form')">📝 Înregistrare</button>
+  <button class="mob-tab" id="mobtab-log" onclick="setMobileTab('log')">📋 Jurnal</button>
+</div>
+
+<!-- ══════════════ ENTRY VIEW ══════════════ -->
+<div class="view active" id="view-entry">
+ <div class="main">
+  <div class="panel-left">
+
+    <div class="panel-section" id="step1">
+      <div class="section-label"><div class="step-badge" id="badge1">1</div>Data livrării</div>
+      <input type="date" id="delivery-date">
+    </div>
+
+    <div class="panel-section step-locked" id="step2">
+      <div class="section-label">
+        <div class="step-badge inactive" id="badge2">2</div>
+        Caută produs
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-start">
+        <div class="search-wrap" style="flex:1">
+          <input type="text" id="product-search" placeholder="Nume, cod articol, cod furnizor sau GTIN…" autocomplete="off">
+          <span class="search-icon">⌕</span>
+          <div class="dropdown-list" id="dropdown"></div>
+        </div>
+        <button onclick="openScanner()" title="Scanează GTIN" style="width:44px;height:44px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--muted);font-size:18px;cursor:pointer;flex-shrink:0;transition:all .15s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">⊡</button>
+      </div>
+      <!-- Scanner modal -->
+      <div id="scanner-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:300;flex-direction:column;align-items:center;justify-content:center">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;width:min(360px,90vw)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <span style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px">Scanează GTIN</span>
+            <button onclick="closeScanner()" style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer">✕</button>
+          </div>
+          <video id="scanner-video" style="width:100%;border-radius:8px;background:#000;aspect-ratio:4/3;object-fit:cover"></video>
+          <p style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);margin-top:10px;text-align:center">Poziționați barcod-ul în fața camerei</p>
+          <div id="scanner-result" style="font-family:'DM Mono',monospace;font-size:12px;color:var(--accent2);margin-top:8px;text-align:center;min-height:16px"></div>
+        </div>
+      </div>
+      <div class="selected-product" id="selected-product">
+        <div class="prod-name" id="sel-name"></div>
+        <div class="prod-meta">
+          <span class="pm-code" id="sel-code"></span>
+          <span class="pm-vc" id="sel-vc"></span>
+          <span class="pm-gi" id="sel-gtin"></span>
+          <span id="sel-cat"></span>
+        </div>
+        <button class="change-btn" onclick="clearProduct()">✕ schimbă produsul</button>
+      </div>
+    </div>
+
+    <div class="panel-section step-locked" id="step3">
+      <div class="section-label"><div class="step-badge inactive" id="badge3">3</div>Unitate de măsură</div>
+      <div class="unit-selector">
+        <button class="unit-btn" id="btn-unit" onclick="selectUnit('UNIT')">BUC</button>
+        <button class="unit-btn" id="btn-kg" onclick="selectUnit('KG')">KG</button>
+      </div>
+    </div>
+
+    <div class="panel-section step-locked" id="step4">
+      <div class="section-label"><div class="step-badge inactive" id="badge4">4</div>Cantitate respinsă</div>
+      <div class="qty-row">
+        <button class="qty-btn" onclick="adjustQty(-1)">−</button>
+        <input type="number" id="qty-input" value="" min="0" step="1" placeholder="0" inputmode="decimal">
+        <span class="unit-display" id="unit-display">—</span>
+        <button class="qty-btn" onclick="adjustQty(1)">+</button>
+      </div>
+    </div>
+
+    <div class="panel-section step-locked" id="step5">
+      <div class="section-label"><div class="step-badge inactive" id="badge5">5</div>Motiv respingere</div>
+      <div class="reason-chips">
+        <span class="reason-chip" onclick="selChip(this,'mucegait')">mucegait</span>
+        <span class="reason-chip" onclick="selChip(this,'stricat / putrezit')">stricat / putrezit</span>
+        <span class="reason-chip" onclick="selChip(this,'data scurtă expirare')">data scurtă expirare</span>
+        <span class="reason-chip" onclick="selChip(this,'lipsă dată expirare')">lipsă dată expirare</span>
+        <span class="reason-chip" onclick="selChip(this,'ambalaj defect')">ambalaj defect</span>
+        <span class="reason-chip" onclick="selChip(this,'produs deteriorat')">produs deteriorat</span>
+        <span class="reason-chip" onclick="selChip(this,'produs greșit')">produs greșit</span>
+        <span class="reason-chip" onclick="selChip(this,'gramaj greșit')">gramaj greșit</span>
+        <span class="reason-chip" onclick="selChip(this,'produs neconform')">produs neconform</span>
+        <span class="reason-chip" onclick="selChip(this,'temperatura necorespunzătoare')">temperatura necorespunzătoare</span>
+        <span class="reason-chip" onclick="selChip(this,'altul')">altul…</span>
+      </div>
+      <textarea id="reason-text" placeholder="Detalii suplimentare (opțional)…" rows="2"></textarea>
+    </div>
+
+    <div class="panel-section">
+      <button class="submit-btn" id="submit-btn" onclick="submitEntry()" disabled>＋ Adaugă înregistrare</button>
+      <div id="sync-status" style="text-align:center;font-family:'DM Mono',monospace;font-size:11px;margin-top:10px;min-height:16px"></div>
+      <div id="queue-badge" style="display:none;text-align:center;font-family:'DM Mono',monospace;font-size:11px;color:var(--warn);margin-top:4px"></div>
+    </div>
+  </div>
+
+  <div class="panel-right">
+    <div class="log-header">
+      <h2>Jurnal înregistrări</h2>
+      <span class="log-count" id="log-count">0</span>
+      <div class="log-actions">
+        <button class="log-action-btn excel-btn" onclick="exportExcel()">⬇ Excel — azi</button>
+        <button class="log-action-btn" onclick="exportCSV()">⬇ CSV — tot</button>
+        <button class="log-action-btn" onclick="clearAll()" style="color:var(--danger)">✕ Șterge tot</button>
+      </div>
+    </div>
+    <div class="filter-bar">
+      <button class="filter-tab ft-active" id="ftab-all" onclick="setFilter('all')">Toate</button>
+      <button class="filter-tab" id="ftab-FV" onclick="setFilter('FV')">F&amp;V</button>
+      <button class="filter-tab" id="ftab-Carne" onclick="setFilter('Carne')">Carne</button>
+      <button class="filter-tab" id="ftab-today" onclick="setFilter('today')">Azi</button>
+    </div>
+    <div class="stats-bar">
+      <div class="stat-card"><div class="stat-label">TOTAL</div><div class="stat-value" id="stat-total">0</div><div class="stat-sub">înregistrări</div></div>
+      <div class="stat-card"><div class="stat-label">AZI</div><div class="stat-value" id="stat-today">0</div><div class="stat-sub">înregistrări</div></div>
+      <div class="stat-card"><div class="stat-label">SKU-URI AFECTATE</div><div class="stat-value" id="stat-unique">0</div><div class="stat-sub">produse unice</div></div>
+    </div>
+    <div class="log-body">
+      <div class="empty-state" id="empty-state">
+        <div class="empty-icon">📋</div>
+        <p>Nu există înregistrări.</p>
+        <p style="font-size:11px;opacity:.5">Completați formularul din stânga.</p>
+      </div>
+      <table class="log-table" id="log-table" style="display:none">
+        <thead><tr>
+          <th>Data</th><th>Cat.</th><th>Produs</th>
+          <th>Cod articol</th><th>Cod furnizor</th>
+          <th>Cant.</th><th>Motiv</th><th></th>
+        </tr></thead>
+        <tbody id="log-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+ </div>
+</div>
+
+<!-- ══════════════ DB VIEW ══════════════ -->
+<div class="view" id="view-db">
+  <div style="display:flex;flex-direction:column;width:100%;min-height:calc(100vh - 63px)">
+  <div class="db-toolbar">
+    <h2>Bază de date produse</h2>
+    <span class="db-count-badge" id="db-count-badge">0 produse</span>
+    <div class="db-actions">
+      <button class="db-btn" onclick="openAddModal()">＋ Adaugă produs</button>
+      <button class="db-btn" onclick="document.getElementById('xlsx-import').click()">⬆ Import XLSX</button>
+      <input type="file" id="xlsx-import" accept=".xlsx,.xls" style="display:none" onchange="importXLSX(this)">
+      <button class="db-btn" onclick="exportDB()">⬇ Export JSON</button>
+      <button class="db-btn danger" onclick="resetDB()">↺ Resetare original</button>
+    </div>
+  </div>
+  <div class="db-search-bar">
+    <div class="search-wrap" style="flex:1;max-width:340px">
+      <input type="text" id="db-search" placeholder="Caută în baza de date…" oninput="renderDB()">
+      <span class="search-icon">⌕</span>
+    </div>
+    <div class="db-cat-tabs">
+      <button class="db-tab dt-active" id="dbtab-all" onclick="setDBFilter('all')">Toate</button>
+      <button class="db-tab" id="dbtab-FV" onclick="setDBFilter('FV')">F&amp;V</button>
+      <button class="db-tab" id="dbtab-Carne" onclick="setDBFilter('Carne')">Carne</button>
+    </div>
+    <span style="margin-left:auto;font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)" id="db-shown"></span>
+  </div>
+  <div class="db-body">
+    <table class="db-table">
+      <thead><tr><th>Cat.</th><th>Cod articol</th><th>Cod furnizor</th><th>GTIN</th><th>Denumire produs</th><th>UM</th><th>Furnizor</th><th></th></tr></thead>
+      <tbody id="db-tbody"></tbody>
+    </table>
+  </div>
+  </div>
+</div>
+
+<!-- ══════════════ ADD/EDIT MODAL ══════════════ -->
+<div class="modal-overlay" id="modal-product">
+  <div class="modal-box">
+    <h3 id="modal-title">Adaugă produs nou</h3>
+    <div class="mf">
+      <label>Categorie</label>
+      <select id="m-cat">
+        <option value="FV">F&amp;V — Fructe &amp; Legume</option>
+        <option value="Carne">Carne proaspătă</option>
+      </select>
+    </div>
+    <div class="mf"><label>Cod articol intern</label><input id="m-code" placeholder="ex. ABCDE-12345"></div>
+    <div class="mf"><label>Cod furnizor (Vendor Code)</label><input id="m-vc" placeholder="ex. 1041451"></div>
+    <div class="mf"><label>GTIN / Barcode</label><input id="m-gtin" placeholder="ex. 8053806393441"></div>
+    <div class="mf"><label>Denumire produs</label><input id="m-name" placeholder="ex. Avocado bio calitatea I, 2 buc"></div>
+    <div class="mf">
+      <label>Unitate implicită</label>
+      <select id="m-unit">
+        <option value="UNIT">BUC (bucăți)</option>
+        <option value="KG">KG (kilograme)</option>
+      </select>
+    </div>
+    <div class="mf"><label>Furnizor</label><input id="m-supplier" placeholder="ex. Selgros" value="Selgros"></div>
+    <div class="modal-actions">
+      <button class="mbtn cancel" onclick="closeModal()">Anulează</button>
+      <button class="mbtn save" onclick="saveModal()">Salvează</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ IMPORT MODAL ══════════════ -->
+<div class="modal-overlay" id="modal-import">
+  <div class="modal-box">
+    <h3>Import XLSX</h3>
+    <div class="import-hint">
+      Fișierul trebuie să aibă coloanele în ordinea:<br>
+      <b>A:</b> Categorie (FV sau Carne) &nbsp;
+      <b>B:</b> Cod articol intern<br>
+      <b>C:</b> Cod furnizor &nbsp;
+      <b>D:</b> GTIN &nbsp;
+      <b>E:</b> Denumire produs<br>
+      <b>F:</b> Unitate (UNIT sau KG) &nbsp;
+      <b>G:</b> Furnizor (opțional)<br><br>
+      Rândul 1 = header (ignorat). Produsele existente (după cod articol + categorie) vor fi <b>actualizate</b>, cele noi vor fi <b>adăugate</b>.
+    </div>
+    <div class="import-preview" id="import-preview"></div>
+    <div class="modal-actions">
+      <button class="mbtn cancel" onclick="closeImportModal()">Închide</button>
+      <button class="mbtn save" id="btn-confirm-import" onclick="confirmImport()" style="display:none">Confirmă importul</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// DATABASE — injected from Excel
+// ═══════════════════════════════════════════════════════════════
+</script>
+<script id="db-script">
+const BUILTIN_FV=[{"code":"PGJOJ-88095","name":"Avocado bio calitatea I, 2 buc","gtin":"8053806393441","vendorCode":"71002","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"KQYNQ-86297","name":"Avocado ready to eat calitatea I, 2 buc","gtin":"8219457386960","vendorCode":"420283","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"XACZY-40167","name":"Baby Ananas calitatea I, 1 buc","gtin":"6020015382353","vendorCode":"566712","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"QINCE-72186","name":"Kiwi bio calitatea I, 450 g","gtin":"6859625637740","vendorCode":"1073103","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"WJNDF-41141","name":"Mango bio, 200 g","gtin":"8473280217529","vendorCode":"1052567","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"EXOCJ-16329","name":"Mango calibrul 6-7 calitatea I, 1 buc","gtin":"7812950031033","vendorCode":"1066912","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"CGBOV-55267","name":"Mango calitatea I ready to eat, 1 buc","gtin":"6502137721475","vendorCode":"1052567","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"YIBLT-04144","name":"Afine calitatea I, 250 g","gtin":"5940541124931","vendorCode":"931128","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"GQZJG-24208","name":"Căpșuni, 250 g","gtin":"8836373982658","vendorCode":"8836373982658","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"UXUNH-96071","name":"CAPSUNI ROMANESTI","gtin":"6579856912408","vendorCode":"926841","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"LAMGB-64359","name":"Coacăze roşii, 125 g","gtin":"8912011133818","vendorCode":"1077254","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"EWYEE-56536","name":"Zmeură calitatea I, 125 g","gtin":"7532271174706","vendorCode":"890962","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"ZJRCV-88448","name":"Carambola calitatea I, 1 buc","gtin":"7438677379717","vendorCode":"1020549","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"WFFSK-54753","name":"Fructul Pasiunii calitatea I, 125 g","gtin":"7016457402383","vendorCode":"","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"PDOMA-30185","name":"Nucă de cocos calitatea I, 1 buc","gtin":"8340480653283","vendorCode":"1053096","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"KZUDE-91561","name":"Nucă de cocos de băut calitatea I, 1 buc","gtin":"6022093469117","vendorCode":"1096749","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"KIKIB-88019","name":"Physalis calitatea I, 100 g","gtin":"8975859730861","vendorCode":"1088358","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"LOTIY-99242","name":"Lămâi calitatea I, 500 g","gtin":"5949057400041","vendorCode":"1025921","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"GITNT-44278","name":"Lămâi netratate calitatea I, 500 g","gtin":"8932921544788","vendorCode":"1002103","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"DYOGP-53345","name":"Portocale bio calitatea I, 1 kg","gtin":"8473577934832","vendorCode":"660829","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"VNEFO-68629","name":"Portocale calitatea I, 1 kg","gtin":"6425278003494","vendorCode":"1032511","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"NQXVZ-77039","name":"Mere Granny Smith bio calitatea I, 4 buc","gtin":"6763821486715","vendorCode":"809497","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"QNXCC-13080","name":"Mere roșii bio calitatea I, 4 buc","gtin":"6655849923207","vendorCode":"898312","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"FIAKP-11934","name":"Struguri albi fără sâmburi calitatea I, 500 g","gtin":"4337271307719","vendorCode":"1042921","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"LPYRL-02818","name":"Varză muratǎ tocatǎ calitatea I, 1 kg","gtin":"8630603031037","vendorCode":"1019963","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"JAQHM-61759","name":"Baby Morcov galbeni calitatea I, 200 g","gtin":"6717084513398","vendorCode":"1094505","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"KGOCF-24998","name":"Cartofi albi calitatea I, 2.5 kg","gtin":"8433920332883","vendorCode":"1088133","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"WJCDB-67758","name":"Cartofi albi salată, 2.5 kg","gtin":"6100550364134","vendorCode":"1004119","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"FMCNM-46071","name":"Cartofi cu sare calitatea I, 800 g","gtin":"6846494182129","vendorCode":"1034777","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"QFMVQ-37484","name":"Cartofi mărar / usturoi calitatea I, 800 g","gtin":"7212475119641","vendorCode":"1076447","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"CHPGX-42745","name":"Cartofi pentru piure şi copt calitatea I, 2.5 kg","gtin":"6418431066276","vendorCode":"1009432","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"BPEBP-81507","name":"Cartofi pentru prăjit calitatea I, 2.5 kg","gtin":"7974501445383","vendorCode":"1009489","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"RANXA-49390","name":"Cartofi picanți calitatea I, 800 g","gtin":"8039247804319","vendorCode":"1076676","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"WTFOH-50257","name":"Cartofi raclette calitatea I, 1 kg","gtin":"8587610666502","vendorCode":"488632","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"RRJAK-28059","name":"Cartofi roșii calitatea I, 2.5 kg","gtin":"8407382416870","vendorCode":"1009359","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"NORHU-16538","name":"Cartofi rozmarin calitatea I, 800 g","gtin":"7493834846365","vendorCode":"1034693","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"SMPVO-94265","name":"Cartofi violet calitatea I, 1 kg","gtin":"6578597828351","vendorCode":"72103","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"IZJVN-13498","name":"Gulii calitatea I, 1 buc","gtin":"8195331053190","vendorCode":"1041831","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"UBOFW-34932","name":"Mix legume pentru ciorbă, 1 buc","gtin":"7730757860277","vendorCode":"1020581","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"QRLQS-09806","name":"Morcovi bio calitatea I, 500 g","gtin":"6960745273975","vendorCode":"355497","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"ERQPW-14742","name":"Morcovi calitatea I, 1 kg","gtin":"8205160352446","vendorCode":"1003159","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"JDCGO-09838","name":"Păstârnac calitatea I, 300 g","gtin":"6379087544115","vendorCode":"120504","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"MXXNL-04807","name":"Ridichi calitatea I, 1 legătură","gtin":"8127850652813","vendorCode":"8127850652813","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"IETES-60003","name":"Ridichi roșii calitatea I, 125 g","gtin":"8822926737257","vendorCode":"1056512","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"CCWCC-85149","name":"Sfeclă roșie coaptă calitatea I, ~500 g","gtin":"6771907795224","vendorCode":"6771907795224","supplier":"Selgros","defaultUnit":"KG"},{"code":"WGCOZ-57948","name":"Dovlecei bio calitatea I, 500 g","gtin":"7073758047200","vendorCode":"493953","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"NDCFE-63877","name":"Vinete bio, 300 g","gtin":"8565894203644","vendorCode":"846090","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"LKNQM-43896","name":"Ceapă echalote calitatea I, 250 g","gtin":"5949085400518","vendorCode":"1083308","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"OIEIP-84492","name":"Ceapă galbenă calitatea I, 1 kg","gtin":"5949096016784","vendorCode":"895689","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"FCQIB-46135","name":"Ceapă roșie calitatea I, 1 kg","gtin":"5949096016722","vendorCode":"36947","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"FIPOI-27008","name":"Ceapă verde calitatea I, 1 legătură","gtin":"8595177810016","vendorCode":"1095182","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"BMKBX-31848","name":"Usturoi bio calitatea I, 150 g","gtin":"7291624714753","vendorCode":"236571","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"ZTTKX-48989","name":"Usturoi calitatea I, 250 g","gtin":"6764944929974","vendorCode":"245598","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"GRLOB-11059","name":"Usturoi calitatea I, 500 g","gtin":"7908717771851","vendorCode":"1049577","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"ZOTCF-81361","name":"Ciuperci champignon calitatea I, 500 g","gtin":"7866657135273","vendorCode":"1051275","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"LVVKE-37483","name":"Ciuperci champignon grill  albe, 1 kg","gtin":"6328183591608","vendorCode":"1017514","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"KUMJC-76578","name":"Ciuperci enoki alb calitatea I, 100 g","gtin":"8999486406531","vendorCode":"1078817","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"BTUND-12392","name":"Ciuperci pleurotus calitatea I, 500 g","gtin":"7544118267984","vendorCode":"1051314","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"DVEXA-18699","name":"Ciuperci portobello calitatea I, 200 g","gtin":"6720562320326","vendorCode":"1040048","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"SOAPN-11146","name":"Ciuperci shiitake calitatea I, 100 g","gtin":"6111349925597","vendorCode":"835192","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"TFGEM-06421","name":"Ciuperci shimeji brune calitatea I, 150 g","gtin":"6757641257969","vendorCode":"","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"OIATU-25346","name":"Ciuperci shimeji calitatea I, 150 g","gtin":"6548230080453","vendorCode":"1045103","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"CBRAT-97786","name":"Busuioc calitatea I, 30 g","gtin":"6749032735422","vendorCode":"159119","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"FWMFF-07430","name":"Chives calitatea I, 30 g","gtin":"6205779755869","vendorCode":"383646","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"ZVJAW-82288","name":"Cimbru calitatea I, 30 g","gtin":"6425190025901","vendorCode":"1013258","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"XWHTY-06975","name":"Coriandru calitatea I, 30 g","gtin":"8662004923130","vendorCode":"108744","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"OYJIH-49640","name":"Leuștean calitatea I, 1 buc","gtin":"8516383807164","vendorCode":"203253","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"UWVUI-28780","name":"Mărar calitatea I, 1 buc","gtin":"8032008264865","vendorCode":"295849","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"EDVTM-14210","name":"Mentă calitatea I, 30 g","gtin":"6284816609099","vendorCode":"69973","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"KKADF-20409","name":"Oregano calitatea I, 30 g","gtin":"6612424677429","vendorCode":"428576","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"HUADU-41720","name":"Pătrunjel calitatea I, 1 buc","gtin":"8639559515660","vendorCode":"1069221","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"WNRZO-35885","name":"Rozmarin calitatea I, 30 g","gtin":"6398960522125","vendorCode":"19621","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"FEXKF-55791","name":"Salvie calitatea I, 30 g","gtin":"6576742008832","vendorCode":"279688","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"TZKHV-26713","name":"Tarhon calitatea I, 30 g","gtin":"7015659844120","vendorCode":"1046595","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"HUGAE-99080","name":"Ghimbir bio calitatea I, 250 g","gtin":"7307873644694","vendorCode":"944329","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"YIKRV-27416","name":"Porumb vid calitatea I, 400 g","gtin":"5940597986033","vendorCode":"794865","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"ZLBGR-75371","name":"Ardei gras Bianca calitatea I, 500 g","gtin":"7474728312647","vendorCode":"718809","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"DMPYY-84294","name":"Ardei gras mix bio calitatea I, 400 g","gtin":"8263995270465","vendorCode":"897144","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"RMXFI-90519","name":"Ardei gras mix calitatea I, 1 buc","gtin":"7868323704585","vendorCode":"1090361","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"SOPHK-03069","name":"Ardei habanero calitatea I, 80 g","gtin":"8787415855792","vendorCode":"1050238","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"BUAZI-61543","name":"Ardei iute bio calitatea I, 200 g","gtin":"7525410315931","vendorCode":"1086413","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"RHLLU-74471","name":"Ardei iute Padron calitatea I, 200 g","gtin":"8380517826839","vendorCode":"959390","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"MCQOZ-01733","name":"Ardei iute verde calitatea I, 100 g","gtin":"6283468050662","vendorCode":"107653","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"EXKXC-54135","name":"Ardei sweet bite calitatea I, 200 g","gtin":"8611039207944","vendorCode":"343741","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"HJGYF-60681","name":"Roșii Piccadilly calitatea I, 500 g","gtin":"8105008100461","vendorCode":"1079182","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"DHLST-00792","name":"Roșii Roma calitatea I, 500 g","gtin":"8525341288921","vendorCode":"1068149","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"ZREKE-07670","name":"Roșii sanmarzano calitatea I, 500 g","gtin":"8007662119578","vendorCode":"1044965","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"EXJTG-02216","name":"Andive calitatea I, 500 g","gtin":"8544409193786","vendorCode":"1010299","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"NIABA-40569","name":"Baby Spanac calitatea I, 100 g","gtin":"6606257765095","vendorCode":"1001375","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"FGKSM-51371","name":"Eisberg Salată bolero mix calitatea I, 160 g","gtin":"7742823711239","vendorCode":"1041286","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"QYXJT-12062","name":"Eisberg Salată din grădină calitatea I, 180 g","gtin":"6010439776913","vendorCode":"1081055","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"HXVJG-55817","name":"Lobodă, 1 legătura","gtin":"8577509749768","vendorCode":"1053197","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"BOLTW-92769","name":"Rucola calitatea I, 125 g","gtin":"7663026629865","vendorCode":"1001354","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"LRTWK-20531","name":"Salată Batavia baby bio calitatea I, 100 g","gtin":"7925800143227","vendorCode":"1101633","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"IJAGE-69869","name":"Salată chinezeascǎ calitatea I, 1 buc","gtin":"6746921652051","vendorCode":"1020475","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"MRHTQ-65438","name":"Salată de vară calitatea I, 180 g","gtin":"8587421171738","vendorCode":"1047247","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"QKCYR-63061","name":"Salată french mix calitatea I, 100 g","gtin":"6735218157638","vendorCode":"1077299","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"WTNOV-08942","name":"Salată iceberg calitatea I, 1 buc","gtin":"7614564889143","vendorCode":"1060562","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"PNSBV-66319","name":"Salată Italiană calitatea I, 100 g","gtin":"8478245561006","vendorCode":"353390","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"EJTJE-82460","name":"Salată Kul Salată de țelină și morcov marinate, 250 g","gtin":"7738845884129","vendorCode":"790564","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"TPYLX-03240","name":"Salată Kul Salată mix legume marinate, 250 g","gtin":"6950437746092","vendorCode":"822252","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"NDOXD-14015","name":"Salată lollo bionda calitatea I, 1 buc","gtin":"8288821023503","vendorCode":"1027974","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"NMCTM-13261","name":"Salată Lollo rossa calitatea I, 250 g","gtin":"8813911163656","vendorCode":"1067974","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"DYBQY-07557","name":"Salată Oriental mix bio calitatea I, 100 g","gtin":"8229437232057","vendorCode":"840022","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"LYSMY-30412","name":"Salată Packchoi calitatea I, 300 g","gtin":"7186706588233","vendorCode":"345727","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"SHTPL-85687","name":"Salată pikans mix calitatea I, 150 g","gtin":"8659037854623","vendorCode":"1062060","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"MBLKY-60920","name":"Salată Poker mix bio calitatea I, 100 g","gtin":"6219952581640","vendorCode":"655504","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"XGPKA-84383","name":"Salată Radicchio rosso buc calitatea I, 1 buc","gtin":"8503730602527","vendorCode":"1070105","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"FYQQC-81191","name":"Salată Romană calitatea I, 450 g","gtin":"7975536974831","vendorCode":"1045690","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"VENZH-46365","name":"Salată Romană mini calitatea I, 150 g","gtin":"6372207648731","vendorCode":"1098098","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"TGEJA-46497","name":"Salată verde calitatea I, 1 buc","gtin":"7049251938734","vendorCode":"1033327","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"RPXCL-77774","name":"Spanac frunze, 400 g","gtin":"8688486157801","vendorCode":"1017707","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"MENBQ-76989","name":"Sparanghel verde, 1 legătură","gtin":"8656191148063","vendorCode":"571542","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"FJVPM-07961","name":"Valeriană bio calitatea I, 100 g","gtin":"6293274581663","vendorCode":"295901","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"PRSRL-87641","name":"Valeriană calitatea I, 125 g","gtin":"6537454869876","vendorCode":"1002358","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"WLNCP-22725","name":"Apio calitatea I, 1 buc","gtin":"7249885543230","vendorCode":"1095388","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"QGJLD-60081","name":"Baby Broccoli calitatea I, 200 g","gtin":"7226678846044","vendorCode":"1099626","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"CADUQ-43727","name":"Varză de Bruxelles calitatea I, 500 g","gtin":"6935534014916","vendorCode":"1091676","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"TPLXH-23537","name":"Rosii cherry, 500g","gtin":"8129598864114","vendorCode":"8129598864114","supplier":"Salad","defaultUnit":"UNIT"},{"code":"GOVGF-37211","name":"Avocado calitatea I, 700 g","gtin":"6347708750795","vendorCode":"1067281","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"TPXLN-99869","name":"Mure, 125 g","gtin":"7695710127883","vendorCode":"1090468","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"KSCHH-46333","name":"Leurdă, 1 legătură","gtin":"6110121224569","vendorCode":"920479","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"YBTUX-19763","name":"Usturoi verde, 1 legătură","gtin":"7500989450474","vendorCode":"1097165","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"ACGFF-00168","name":"Ananas calibrul 5-7 calitatea I, ~1600 g","gtin":"8199723213339","vendorCode":"1042416","supplier":"Selgros","defaultUnit":"KG"},{"code":"CDKCQ-44602","name":"Banane calitatea I, ~170 g","gtin":"7665756663270","vendorCode":"92062","supplier":"Selgros","defaultUnit":"KG"},{"code":"VKNXX-41241","name":"Dole Banane premium, ~210 g","gtin":"7828172381351","vendorCode":"7828172381351","supplier":"Selgros","defaultUnit":"KG"},{"code":"ANBUX-76422","name":"Kiwi calitatea I, ~110 g","gtin":"8531796462342","vendorCode":"1093371","supplier":"Selgros","defaultUnit":"KG"},{"code":"AAPIR-50129","name":"Pepene Cantaluope calitatea I, ~1410 g","gtin":"6957410795047","vendorCode":"1007533","supplier":"Selgros","defaultUnit":"KG"},{"code":"YTKRI-43777","name":"Pepene Gialetti calitatea I, ~1050 g","gtin":"8833875008893","vendorCode":"1082019","supplier":"Selgros","defaultUnit":"KG"},{"code":"KZDXD-12767","name":"Nectarine calitatea I, ~120 g","gtin":"6037412750876","vendorCode":"1090511","supplier":"Selgros","defaultUnit":"KG"},{"code":"LOWIL-07907","name":"Rodie, ~260 g","gtin":"8634914639098","vendorCode":"1090391","supplier":"Selgros","defaultUnit":"KG"},{"code":"IZVDQ-19716","name":"Grapefruit roşu calitatea I, ~360 g","gtin":"8320454955759","vendorCode":"1000786","supplier":"Selgros","defaultUnit":"KG"},{"code":"TPQJE-94884","name":"Lime, ~80 g","gtin":"7475061931304","vendorCode":"1091271","supplier":"Selgros","defaultUnit":"KG"},{"code":"BOPSU-53114","name":"Mandarine calitatea I, ~150 g","gtin":"8825479794814","vendorCode":"983589","supplier":"Selgros","defaultUnit":"KG"},{"code":"MFFLG-32860","name":"Mere Golden, ~180 g","gtin":"8446010398843","vendorCode":"1044069","supplier":"Selgros","defaultUnit":"KG"},{"code":"SWLSD-50291","name":"Mere Granny Smith calitatea I, ~200 g","gtin":"8321979441109","vendorCode":"1029191","supplier":"Selgros","defaultUnit":"KG"},{"code":"EJMSC-21251","name":"Mere Idared, ~150 g","gtin":"7053302563240","vendorCode":"1014713","supplier":"Selgros","defaultUnit":"KG"},{"code":"WJHMF-75287","name":"Mere Red Delicios, ~170 g","gtin":"7233478861771","vendorCode":"1097975","supplier":"Selgros","defaultUnit":"KG"},{"code":"XHGFT-73491","name":"Mere Royal Gala, ~170 g","gtin":"8616431990517","vendorCode":"1056522","supplier":"Selgros","defaultUnit":"KG"},{"code":"SDMUA-60052","name":"Pere Conference, ~130 g","gtin":"7555690158300","vendorCode":"1002272","supplier":"Selgros","defaultUnit":"KG"},{"code":"FVBQD-73954","name":"Pere Lucas, ~160 g","gtin":"8391710637306","vendorCode":"1033107","supplier":"Selgros","defaultUnit":"KG"},{"code":"CKTML-69108","name":"Pere Santa Maria, ~150 g","gtin":"6752833545589","vendorCode":"1100935","supplier":"Selgros","defaultUnit":"KG"},{"code":"MXAUZ-74042","name":"Pere Williams calitatea I, ~200 g","gtin":"6509182988440","vendorCode":"1099779","supplier":"Selgros","defaultUnit":"KG"},{"code":"JJXVR-53334","name":"Struguri albi, ~470 g","gtin":"7414684671600","vendorCode":"7414684671600","supplier":"Selgros","defaultUnit":"KG"},{"code":"IATNA-02890","name":"Struguri negri, ~1000 g","gtin":"6908550329715","vendorCode":"1006274","supplier":"Selgros","defaultUnit":"KG"},{"code":"JHZVJ-06991","name":"Struguri roze calitatea I, ~1050 g","gtin":"8027445002460","vendorCode":"1005433","supplier":"Selgros","defaultUnit":"KG"},{"code":"PCOXB-02472","name":"Varză muratǎ calitatea I, ~2215 g","gtin":"7348591643590","vendorCode":"1083053","supplier":"Selgros","defaultUnit":"KG"},{"code":"UEXFP-96698","name":"Cartofi albi noi calitatea I, ~210 g","gtin":"6790675139047","vendorCode":"1090435","supplier":"Selgros","defaultUnit":"KG"},{"code":"XTAUD-97908","name":"Cartofi dulci, ~210 g","gtin":"8483695692279","vendorCode":"1097172","supplier":"Selgros","defaultUnit":"KG"},{"code":"DBCLY-31304","name":"Fenicul calitatea I, ~220 g","gtin":"8292174445295","vendorCode":"1014414","supplier":"Selgros","defaultUnit":"KG"},{"code":"FXOQM-06347","name":"Păstârnac calitatea I, ~125 g","gtin":"6587640182364","vendorCode":"1092730","supplier":"Selgros","defaultUnit":"KG"},{"code":"GEPLA-15212","name":"Ridichi albe, ~660 g","gtin":"8612423228026","vendorCode":"1048251","supplier":"Selgros","defaultUnit":"KG"},{"code":"OOVGF-86797","name":"Sfeclă roşie calitatea I, ~270 g","gtin":"6848546606171","vendorCode":"1090296","supplier":"Selgros","defaultUnit":"KG"},{"code":"TWRUZ-36540","name":"Țelină calitatea I, ~550 g","gtin":"8030182013576","vendorCode":"1082124","supplier":"Selgros","defaultUnit":"KG"},{"code":"VXSAD-94598","name":"Castraveți cornișon, ~80 g","gtin":"8943088155373","vendorCode":"1083923","supplier":"Selgros","defaultUnit":"KG"},{"code":"EGTLR-33460","name":"Castraveți Fabio calitatea I, ~240 g","gtin":"8207043516020","vendorCode":"1068933","supplier":"Selgros","defaultUnit":"KG"},{"code":"WLYSO-66934","name":"Dovleac plăcintar calitatea I, ~2390 g","gtin":"8764051042014","vendorCode":"405752","supplier":"Selgros","defaultUnit":"KG"},{"code":"WDXID-96573","name":"Dovlecei calitatea I, ~260 g","gtin":"7693575947059","vendorCode":"1044779","supplier":"Selgros","defaultUnit":"KG"},{"code":"YXHIJ-06500","name":"Vinete, ~400 g","gtin":"7544411899189","vendorCode":"1022513","supplier":"Selgros","defaultUnit":"KG"},{"code":"CEKOM-75894","name":"Zucchini, ~280 g","gtin":"7349986095475","vendorCode":"1009979","supplier":"Selgros","defaultUnit":"KG"},{"code":"XICSA-37412","name":"Praz calitatea I, ~300 g","gtin":"8527579853858","vendorCode":"1010287","supplier":"Selgros","defaultUnit":"KG"},{"code":"VKRQE-54905","name":"Ardei gras galben calitatea I, ~225 g","gtin":"8363780846995","vendorCode":"1097887","supplier":"Selgros","defaultUnit":"KG"},{"code":"VCTTI-77781","name":"Ardei gras verde calitatea I, ~180 g","gtin":"7065280919759","vendorCode":"1032476","supplier":"Selgros","defaultUnit":"KG"},{"code":"LZLNW-16321","name":"Ardei kapia roșu calitatea I, ~100 g","gtin":"6054987840054","vendorCode":"1043012","supplier":"Selgros","defaultUnit":"KG"},{"code":"ZFFCN-04247","name":"Roșii calitatea I, ~100 g","gtin":"8017767900209","vendorCode":"1087753","supplier":"Selgros","defaultUnit":"KG"},{"code":"JRSYD-54110","name":"Broccoli calitatea I, ~500 g","gtin":"7866956649488","vendorCode":"1000832","supplier":"Selgros","defaultUnit":"KG"},{"code":"FYWTL-00618","name":"Conopidă calitatea I, ~1100 g","gtin":"6918050125946","vendorCode":"1014278","supplier":"Selgros","defaultUnit":"KG"},{"code":"OAQIG-16463","name":"varza alba","gtin":"8811143449494","vendorCode":"1097840","supplier":"Selgros","defaultUnit":"KG"},{"code":"se listeaza acum","name":"Varza alba timpurie romania","gtin":"8138200365543","vendorCode":"1097840","supplier":"Selgros","defaultUnit":"KG"},{"code":"MOLSL-32584","name":"Varză roşie calitatea I, ~1383 g","gtin":"7242100383079","vendorCode":"781522","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"VTHEG-12719","name":"Pepene verde, ~2000 g","gtin":"7820525526600","vendorCode":"1096038","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"LRBEO-30015","name":"Ardei Gras roșu, ~260 g","gtin":"6116818295300","vendorCode":"1039746","supplier":"Selgros","defaultUnit":"KG"}];
+const BUILTIN_CARNE=[{"code":"JJIFR-05433","name":"Fragedo Pui grill tăviță, ~1793 g","gtin":"4337271352610","vendorCode":"1041451","supplier":"Selgros","defaultUnit":"KG"},{"code":"TBABL-72791","name":"Cocorico Aripi pui caserolă, ~850 g","gtin":"7075921336876","vendorCode":"1098177","supplier":"Selgros","defaultUnit":"KG"},{"code":"HUEOG-70207","name":"Cocorico Carne tocată din piept de pui, ~750 g","gtin":"7374754452334","vendorCode":"1052360","supplier":"Selgros","defaultUnit":"KG"},{"code":"RATDJ-06534","name":"Cocorico Ficat de pasăre caserolă, ~500 g","gtin":"4337271326710","vendorCode":"911349","supplier":"Selgros","defaultUnit":"KG"},{"code":"CZRNJ-82918","name":"Agricola Piept de pui inner file, ~590 g","gtin":"4337271377514","vendorCode":"1086550","supplier":"Selgros","defaultUnit":"KG"},{"code":"DVHKT-91825","name":"Cocorico Mușchiuleț de pui, 370 g","gtin":"5941876001614","vendorCode":"1067398","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"AKSPH-46096","name":"Cocorico File Piept de pui dezosat fără piele, 370 g","gtin":"5941876001591","vendorCode":"1067308","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"XSJUV-49395","name":"Fragedo Deli Piept de pui dezosat fără piele feliat, ~850 g","gtin":"4337271353662","vendorCode":"1043247","supplier":"Selgros","defaultUnit":"KG"},{"code":"YTSBT-93493","name":"Fragedo Piept de pui dezosat fără piele, ~850 g","gtin":"4337271352627","vendorCode":"1041453","supplier":"Selgros","defaultUnit":"KG"},{"code":"LDBVH-05421","name":"Lili Gri Aripi de curcan fără vârf, ~700 g","gtin":"4337271344158","vendorCode":"1026917","supplier":"Selgros","defaultUnit":"KG"},{"code":"FEICF-97113","name":"Lili Gri Piept de curcan file caserolă, ~1108 g","gtin":"4337271344196","vendorCode":"1026922","supplier":"Selgros","defaultUnit":"KG"},{"code":"YKEAA-43534","name":"Lili Gri Pulpe de curcan dezosate caserolă, ~1104 g","gtin":"4337271344172","vendorCode":"1026919","supplier":"Selgros","defaultUnit":"KG"},{"code":"NTQPH-71228","name":"Fragedo Pulpe de pui inferioare, ~800 g","gtin":"4337271352634","vendorCode":"1041455","supplier":"Selgros","defaultUnit":"KG"},{"code":"IFBCP-28509","name":"Puiul de Crăiești Pulpe de pui superioare cu os și piele, ~860 g","gtin":"8981997790452","vendorCode":"470880","supplier":"Selgros","defaultUnit":"KG"},{"code":"UETII-91823","name":"Puiul de Crăiești Pulpe de pui superioare dezosate cu piele, ~779 g","gtin":"8666036485413","vendorCode":"372121","supplier":"Selgros","defaultUnit":"KG"},{"code":"RTEDC-99479","name":"Puiul de Crăiești Pulpe de pui superioare dezosate fără piele, ~900 g","gtin":"2830780000000","vendorCode":"355949","supplier":"Selgros","defaultUnit":"KG"},{"code":"WTLDP-50511","name":"Cârnăciori din carne de porc proaspeți, ~700 g","gtin":"4337271338997","vendorCode":"1016707","supplier":"Selgros","defaultUnit":"KG"},{"code":"LYHSZ-74508","name":"Cârnăciori picanți proaspeți, ~500 g","gtin":"4337271383355","vendorCode":"1096369","supplier":"Selgros","defaultUnit":"KG"},{"code":"QORJS-20309","name":"Cârnați ca la Moldova, ~680 g","gtin":"4337271346190","vendorCode":"1031888","supplier":"Selgros","defaultUnit":"KG"},{"code":"VDXTB-11843","name":"Carne Tocată de porc, ~1009 g","gtin":"4337271338966","vendorCode":"809195","supplier":"Selgros","defaultUnit":"KG"},{"code":"KOIRZ-65995","name":"Mici de vită și porc mix tăviță 8 buc, ~660 g","gtin":"4337271360165","vendorCode":"1054928","supplier":"Selgros","defaultUnit":"KG"},{"code":"QJBUR-34051","name":"Ceafă de porc dezosată feliată, ~386 g","gtin":"4337271335989","vendorCode":"1010769","supplier":"Selgros","defaultUnit":"KG"},{"code":"BRUYK-62558","name":"Ceafă de porc fără os marinată cu ierburi, ~430 g","gtin":"4337271354249","vendorCode":"1044167","supplier":"Selgros","defaultUnit":"KG"},{"code":"MUMIX-32129","name":"Ceafă de porc fără os marinată, ~470 g","gtin":"4337271354102","vendorCode":"1043978","supplier":"Selgros","defaultUnit":"KG"},{"code":"JTTJY-65213","name":"Cotlet de porc dezosat feliat, ~550 g","gtin":"6691475523534","vendorCode":"702294","supplier":"Selgros","defaultUnit":"KG"},{"code":"BDXCO-02245","name":"File de porc marinat cu ierburi, ~400 g","gtin":"4337271340228","vendorCode":"1019517","supplier":"Selgros","defaultUnit":"KG"},{"code":"TVHKV-79693","name":"File de porc marinat, ~400 g","gtin":"4337271340112","vendorCode":"1019267","supplier":"Selgros","defaultUnit":"KG"},{"code":"QJWBP-10527","name":"Gulaș din pulpă de porc, ~800 g","gtin":"8048208208943","vendorCode":"666927","supplier":"Selgros","defaultUnit":"KG"},{"code":"XXISK-03332","name":"Friptură din pulpă de porc, ~900 g","gtin":"4337271348774","vendorCode":"1036267","supplier":"Selgros","defaultUnit":"KG"},{"code":"KMMWL-18633","name":"Mușchiuleț de porc frăgezit, ~460 g","gtin":"4337271328356","vendorCode":"944433","supplier":"Selgros","defaultUnit":"KG"},{"code":"RROWW-89262","name":"Piept de porc feliat marinat cu ierburi, ~650 g","gtin":"4337271376739","vendorCode":"1085091","supplier":"Selgros","defaultUnit":"KG"},{"code":"UMRYE-36999","name":"Piept de porc feliat marinat, ~475 g","gtin":"4337271376630","vendorCode":"1084885","supplier":"Selgros","defaultUnit":"KG"},{"code":"MCDBY-39315","name":"Fleică de porc feliată, ~600 g","gtin":"4337271349856","vendorCode":"1037921","supplier":"Selgros","defaultUnit":"KG"},{"code":"ULDEI-13099","name":"Coastă cu carne marinată, ~440 g","gtin":"4337271364057","vendorCode":"1063515","supplier":"Selgros","defaultUnit":"KG"},{"code":"UHQYY-50825","name":"Scăricică de porc marinată bbq, ~500 g","gtin":"4337271365276","vendorCode":"1065452","supplier":"Selgros","defaultUnit":"KG"},{"code":"RQTQG-97962","name":"Scăricică de porc marinată cu ierburi de grădină, ~650 g","gtin":"4337271365481","vendorCode":"1065695","supplier":"Selgros","defaultUnit":"KG"},{"code":"UVYQH-07222","name":"Antricot de mânzat cu os feliat, ~700 g","gtin":"8469100624479","vendorCode":"1017268","supplier":"Selgros","defaultUnit":"KG"},{"code":"IHUAC-36442","name":"Antricot de vită Brazilia, ~240 g","gtin":"4337271410952","vendorCode":"883245","supplier":"Selgros","defaultUnit":"KG"},{"code":"DMLFU-39981","name":"Hamburger de vită, ~300 g","gtin":"4337271376883","vendorCode":"1085321","supplier":"Selgros","defaultUnit":"KG"},{"code":"PHUIF-31143","name":"Mușchi de vită Black Angus maturat, 200 g","gtin":"8283490426761","vendorCode":"739229","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"EETII-50383","name":"T-Bone steak, ~616 g","gtin":"4337271437454","vendorCode":"1082636","supplier":"Selgros","defaultUnit":"KG"},{"code":"SSRYI-05075","name":"Vrăbioară de vită Brazilia, ~235 g","gtin":"4337271410945","vendorCode":"861967","supplier":"Selgros","defaultUnit":"KG"},{"code":"LOGJU-75531","name":"Cotlete de berbecuț feliate, ~250 g","gtin":"6423520398312","vendorCode":"383502","supplier":"Selgros","defaultUnit":"KG"},{"code":"HCYFZ-37497","name":"Mix Grill cu Cârnăciori pachet family, ~1000 g","gtin":"8860346436923","vendorCode":"1093774","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"PKDNH-26369","name":"Mix Grill cu Cârnarți pachet family, ~1000 g","gtin":"7539987450780","vendorCode":"1093752","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"KHVDU-20940","name":"Mix Grill cu Cotlet de porc file pachet family, ~1000 g","gtin":"8762687244611","vendorCode":"1093854","supplier":"Selgros","defaultUnit":"UNIT"},{"code":"WHSRU-14463","name":"Mix Grill Marinat pachet family, ~1000 g","gtin":"6206050547494","vendorCode":"1093665","supplier":"Selgros","defaultUnit":"UNIT"}];
+</script>
+<script>
+// ═══════════════════════════════════════════════════════════════
+// GOOGLE SHEETS SYNC
+// ═══════════════════════════════════════════════════════════════
+const SHEETS_URL = 'https://script.google.com/a/macros/wolt.com/s/AKfycby3eo2DoczmP0ibA1uIUWEgmKWHNEpMECGMDNt1ZVpSX8rAUS7lR5vkjb2T2B05BzQa/exec';
+
+function syncToSheets(entry) {
+  var payload = {
+    _qid: entry.id,
+    deliveryDate: fmtDate(entry.deliveryDate),
+    category: entry.category,
+    productCode: entry.productCode,
+    vendorCode: entry.vendorCode || '',
+    productName: entry.productName,
+    gtin: entry.gtin || '',
+    qty: entry.unit === 'KG' ? Number(entry.qty).toFixed(2) : String(entry.qty),
+    unit: entry.unit === 'KG' ? 'kg' : 'buc',
+    reason: entry.reason
+  };
+
+  if (!navigator.onLine) {
+    // Queue for later
+    offlineQueue.push(payload);
+    saveQueue();
+    updateQueueBadge();
+    setSyncStatus('queued');
+    return;
+  }
+
+  setSyncStatus('syncing');
+
+  fetch(SHEETS_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(function() {
+    setSyncStatus('ok');
+  })
+  .catch(function(err) {
+    console.error('Sheets sync error:', err);
+    // Add to offline queue for retry
+    offlineQueue.push(payload);
+    saveQueue();
+    updateQueueBadge();
+    setSyncStatus('queued');
+  });
+}
+
+function setSyncStatus(status) {
+  var el = document.getElementById('sync-status');
+  if (!el) return;
+  if (status === 'syncing') {
+    el.textContent = '⟳ Se sincronizează…';
+    el.style.color = 'var(--warn)';
+  } else if (status === 'ok') {
+    el.textContent = '✓ Sincronizat cu Sheets';
+    el.style.color = 'var(--accent2)';
+    setTimeout(function() { el.textContent = ''; }, 3000);
+  } else if (status === 'queued') {
+    el.textContent = '⏳ Salvat local — va fi trimis când revine conexiunea';
+    el.style.color = 'var(--warn)';
+    setTimeout(function() { el.textContent = ''; }, 4000);
+  } else {
+    el.textContent = '⚠ Eroare sincronizare';
+    el.style.color = 'var(--danger)';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════
+function norm(s) {
+  return String(s || '').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[şș]/g, 's').replace(/[ţț]/g, 't')
+    .replace(/[ăâ]/g, 'a').replace(/î/g, 'i');
+}
+
+function hlText(text, q) {
+  if (!q) return text;
+  const idx = norm(text).indexOf(norm(q));
+  if (idx < 0) return text;
+  return text.slice(0, idx)
+    + '<mark style="background:rgba(168,230,61,.22);color:inherit;border-radius:2px">'
+    + text.slice(idx, idx + q.length)
+    + '</mark>'
+    + text.slice(idx + q.length);
+}
+
+function todayISO() {
+  const d = new Date();
+  return d.getFullYear() + '-'
+    + String(d.getMonth() + 1).padStart(2, '0') + '-'
+    + String(d.getDate()).padStart(2, '0');
+}
+
+function fmtDate(d) {
+  if (!d) return '';
+  const [y, m, day] = d.split('-');
+  return day + '.' + m + '.' + y;
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (type ? ' ' + type : '');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let DB = (function() {
+  try {
+    const s = localStorage.getItem('inbound_db_v4');
+    if (!s) return buildDefaultDB();
+    const parsed = JSON.parse(s);
+    // Sanity check: if Carne products are missing, rebuild
+    const hasCarneProducts = parsed.some(function(p) { return p.category === 'Carne'; });
+    if (!hasCarneProducts) {
+      console.warn('DB missing Carne products, rebuilding from defaults');
+      const rebuilt = buildDefaultDB();
+      localStorage.setItem('inbound_db_v4', JSON.stringify(rebuilt));
+      return rebuilt;
+    }
+    return parsed;
+  } catch(e) { return buildDefaultDB(); }
+})();
+
+let entries = (function() {
+  try { return JSON.parse(localStorage.getItem('inbound_entries_v4') || '[]'); }
+  catch(e) { return []; }
+})();
+
+let curView = 'entry';
+// category now per-product, not global
+let curFilter = 'all';
+let curDBFilter = 'all';
+let deliveryDate = '';
+let selectedProduct = null;
+let curUnit = null;
+let curChip = null;
+let editKey = null;
+let pendingImport = null;
+
+function buildDefaultDB() {
+  return [
+    ...BUILTIN_FV.map(p => Object.assign({}, p, { category: 'FV' })),
+    ...BUILTIN_CARNE.map(p => Object.assign({}, p, { category: 'Carne' }))
+  ];
+}
+
+function saveDB() { localStorage.setItem('inbound_db_v4', JSON.stringify(DB)); }
+function saveEntries() { localStorage.setItem('inbound_entries_v4', JSON.stringify(entries)); }
+
+// ═══════════════════════════════════════════════════════════════
+// VIEW
+// ═══════════════════════════════════════════════════════════════
+function setView(v) {
+  curView = v;
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.getElementById('view-' + v).classList.add('active');
+  document.getElementById('nav-entry').style.display = v === 'db' ? '' : 'none';
+  document.getElementById('nav-db').style.display = v === 'entry' ? '' : 'none';
+  if (v === 'db') renderDB();
+}
+
+
+
+// ═══════════════════════════════════════════════════════════════
+// STEP HELPERS
+// ═══════════════════════════════════════════════════════════════
+function unlockStep(n) {
+  document.getElementById('step' + n).classList.remove('step-locked');
+  document.getElementById('badge' + n).classList.remove('inactive');
+}
+function lockStep(n) {
+  document.getElementById('step' + n).classList.add('step-locked');
+  document.getElementById('badge' + n).classList.add('inactive');
+}
+function doneStep(n) { document.getElementById('badge' + n).classList.add('done'); }
+
+// ═══════════════════════════════════════════════════════════════
+// DATE
+// ═══════════════════════════════════════════════════════════════
+const dateEl = document.getElementById('delivery-date');
+dateEl.value = todayISO();
+deliveryDate = dateEl.value;
+doneStep(1); unlockStep(2);
+
+dateEl.addEventListener('change', function() {
+  deliveryDate = this.value;
+  if (deliveryDate) { doneStep(1); unlockStep(2); }
+  else { [2, 3, 4, 5].forEach(lockStep); }
+  validate();
+});
+
+// ═══════════════════════════════════════════════════════════════
+// PRODUCT SEARCH
+// ═══════════════════════════════════════════════════════════════
+const searchEl = document.getElementById('product-search');
+const ddEl = document.getElementById('dropdown');
+
+searchEl.addEventListener('input', function() {
+  var q = this.value.trim();
+  if (!q) { ddEl.classList.remove('open'); return; }
+  var nq = norm(q);
+  var res = DB.filter(function(p) {
+    return norm(p.name).includes(nq) ||
+           norm(p.code).includes(nq) ||
+           norm(p.vendorCode || '').includes(nq) ||
+           (p.gtin || '').includes(q);
+  }).slice(0, 14);
+
+  if (!res.length) {
+    ddEl.innerHTML = '<div class="dd-item" style="color:var(--muted);cursor:default"><div class="dd-name">Niciun rezultat</div></div>';
+    ddEl.classList.add('open');
+    return;
+  }
+
+  ddEl.innerHTML = res.map(function(p) {
+    var unitClass = p.defaultUnit === 'KG' ? 'dd-unit-kg' : 'dd-unit-buc';
+    var catClass = p.category === 'FV' ? 'cp-fv' : 'cp-carne';
+    var catLabel = p.category === 'FV' ? '🥦 F&V' : '🥩 Carne';
+    var safeCode = p.code.replace(/'/g, "\\'");
+    return '<div class="dd-item" onclick="selectProduct(\'' + safeCode + '\',\'' + p.category + '\')">'
+      + '<div class="dd-name">' + hlText(p.name, q) + '</div>'
+      + '<div class="dd-meta">'
+      + '<span class="cat-pill ' + catClass + '" style="padding:1px 6px;font-size:10px">' + catLabel + '</span>'
+      + '<span>' + p.code + '</span>'
+      + (p.vendorCode ? '<span class="dd-vc">VC: ' + p.vendorCode + '</span>' : '')
+      + (p.gtin ? '<span class="dd-gi">GTIN: ' + p.gtin + '</span>' : '')
+      + '<span class="' + unitClass + '">' + p.defaultUnit + '</span>'
+      + '</div></div>';
+  }).join('');
+  ddEl.classList.add('open');
+});
+
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.search-wrap')) ddEl.classList.remove('open');
+});
+searchEl.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') ddEl.classList.remove('open');
+});
+
+function selectProduct(code, cat) {
+  const p = DB.find(function(x) { return x.code === code && x.category === cat; });
+  if (!p) return;
+  selectedProduct = p;
+  searchEl.value = '';
+  ddEl.classList.remove('open');
+  document.getElementById('sel-name').textContent = p.name;
+  document.getElementById('sel-code').textContent = p.code;
+  document.getElementById('sel-vc').textContent = p.vendorCode ? 'VC: ' + p.vendorCode : '';
+  document.getElementById('sel-gtin').textContent = p.gtin ? 'GTIN: ' + p.gtin : '';
+  var catEl = document.getElementById('sel-cat');
+  catEl.className = p.category === 'FV' ? 'pm-fv' : 'pm-carne';
+  catEl.textContent = p.category === 'FV' ? '🥦 F&V' : '🥩 Carne';
+  document.getElementById('selected-product').classList.add('visible');
+  doneStep(2); unlockStep(3);
+  selectUnit(p.defaultUnit);
+  validate();
+}
+
+function clearProduct() {
+  selectedProduct = null; curUnit = null;
+  document.getElementById('selected-product').classList.remove('visible');
+  document.getElementById('qty-input').value = '';
+  document.getElementById('unit-display').textContent = '—';
+  document.getElementById('btn-unit').classList.remove('active');
+  document.getElementById('btn-kg').classList.remove('active');
+  [3, 4, 5].forEach(lockStep);
+  validate();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// UNIT
+// ═══════════════════════════════════════════════════════════════
+function selectUnit(unit) {
+  curUnit = unit;
+  document.getElementById('btn-unit').classList.toggle('active', unit === 'UNIT');
+  document.getElementById('btn-kg').classList.toggle('active', unit === 'KG');
+  document.getElementById('unit-display').textContent = unit === 'KG' ? 'kg' : 'buc';
+  var q = document.getElementById('qty-input');
+  q.step = unit === 'KG' ? '0.01' : '1';
+  q.setAttribute('min', unit === 'KG' ? '0.01' : '1');
+  q.setAttribute('inputmode', 'decimal');
+  if (unit === 'UNIT') {
+    q.setAttribute('pattern', '[0-9]*');
+  } else {
+    q.setAttribute('pattern', '[0-9]*[.,]?[0-9]{0,2}');
+  }
+  doneStep(3); unlockStep(4); unlockStep(5);
+  validate();
+}
+
+function adjustQty(delta) {
+  var el = document.getElementById('qty-input');
+  var cur = parseFloat(el.value) || 0;
+  if (curUnit === 'KG') {
+    var nv = Math.round((cur + delta * 0.1) * 100) / 100;
+    if (nv < 0.1 && delta < 0) { el.value = ''; validate(); return; }
+    el.value = Math.max(0.1, nv).toFixed(2);
+  } else {
+    var nv2 = Math.max(0, cur + delta);
+    if (nv2 === 0) { el.value = ''; validate(); return; }
+    el.value = nv2;
+  }
+  validate();
+}
+
+document.getElementById('qty-input').addEventListener('input', function() {
+  // Replace comma with dot for decimal separator
+  if (this.value.indexOf(',') !== -1) {
+    var pos = this.selectionStart;
+    this.value = this.value.replace(',', '.');
+    this.setSelectionRange(pos, pos);
+  }
+  // For UNIT: strip decimals immediately
+  if (curUnit === 'UNIT') {
+    var v = parseInt(this.value);
+    if (!isNaN(v)) this.value = Math.abs(v) || '';
+  }
+  // For KG: don't reformat while typing — only strip if more than 2 decimals
+  // This lets the user type "1." or "1.2" without jumping
+  if (curUnit === 'KG') {
+    var dotIdx = this.value.indexOf('.');
+    if (dotIdx !== -1 && this.value.length - dotIdx - 1 > 2) {
+      this.value = this.value.slice(0, dotIdx + 3);
+    }
+  }
+  validate();
+});
+
+// On blur, clean up KG value (e.g. "1." → "1.00", "1.5" → "1.50")
+document.getElementById('qty-input').addEventListener('blur', function() {
+  if (curUnit === 'KG' && this.value !== '') {
+    var raw = this.value.replace(',', '.');
+    var v = parseFloat(raw);
+    if (!isNaN(v) && v > 0) this.value = v.toFixed(2);
+    else this.value = '';
+  }
+  validate();
+});
+
+// ═══════════════════════════════════════════════════════════════
+// REASON
+// ═══════════════════════════════════════════════════════════════
+function selChip(el, text) {
+  document.querySelectorAll('.reason-chip').forEach(function(c) { c.classList.remove('selected'); });
+  if (curChip === text) {
+    curChip = null;
+  } else {
+    el.classList.add('selected');
+    curChip = text;
+    var ta = document.getElementById('reason-text');
+    if (!ta.value.trim()) ta.value = text;
+  }
+  validate();
+}
+document.getElementById('reason-text').addEventListener('input', validate);
+
+// ═══════════════════════════════════════════════════════════════
+// VALIDATE + SUBMIT
+// ═══════════════════════════════════════════════════════════════
+function validate() {
+  var qty = parseFloat(document.getElementById('qty-input').value);
+  var reason = curChip || document.getElementById('reason-text').value.trim();
+  document.getElementById('submit-btn').disabled = !(deliveryDate && selectedProduct && curUnit && qty > 0 && reason);
+}
+
+function submitEntry() {
+  var qty = parseFloat(document.getElementById('qty-input').value);
+  var reason = document.getElementById('reason-text').value.trim() || curChip || '';
+  var p = selectedProduct;
+  entries.unshift({
+    id: Date.now(),
+    deliveryDate: deliveryDate,
+    category: p.category,
+    productCode: p.code,
+    productName: p.name,
+    gtin: p.gtin || '',
+    vendorCode: p.vendorCode || '',
+    supplier: p.supplier || '',
+    qty: qty,
+    unit: curUnit,
+    reason: reason
+  });
+  saveEntries(); renderLog();
+  syncToSheets(entries[0]);
+  showToast('✓ Înregistrare adăugată');
+  // On mobile, switch to log tab so user sees their entry
+  if (window.innerWidth <= 860) {
+    setTimeout(function() { setMobileTab('log'); }, 600);
+  }
+  clearProduct();
+  document.getElementById('reason-text').value = '';
+  document.querySelectorAll('.reason-chip').forEach(function(c) { c.classList.remove('selected'); });
+  curChip = null;
+  validate();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FILTER + LOG
+// ═══════════════════════════════════════════════════════════════
+function setFilter(f) {
+  curFilter = f;
+  ['all', 'FV', 'Carne', 'today'].forEach(function(id) {
+    var b = document.getElementById('ftab-' + id);
+    if (b) b.className = 'filter-tab';
+  });
+  var a = document.getElementById('ftab-' + f);
+  if (!a) return;
+  if (f === 'FV') a.className = 'filter-tab ft-fv';
+  else if (f === 'Carne') a.className = 'filter-tab ft-carne';
+  else a.className = 'filter-tab ft-active';
+  renderLog();
+}
+
+function getFiltered() {
+  var t = todayISO();
+  return entries.filter(function(e) {
+    if (curFilter === 'FV') return e.category === 'FV';
+    if (curFilter === 'Carne') return e.category === 'Carne';
+    if (curFilter === 'today') return e.deliveryDate === t;
+    return true;
+  });
+}
+
+function renderLog() {
+  var filtered = getFiltered();
+  var t = todayISO();
+  document.getElementById('stat-total').textContent = entries.length;
+  document.getElementById('stat-today').textContent = entries.filter(function(e) { return e.deliveryDate === t; }).length;
+  var unique = {};
+  entries.forEach(function(e) { unique[e.productCode] = 1; });
+  document.getElementById('stat-unique').textContent = Object.keys(unique).length;
+  document.getElementById('log-count').textContent = filtered.length;
+
+  var empty = document.getElementById('empty-state');
+  var table = document.getElementById('log-table');
+  if (!filtered.length) { empty.style.display = 'flex'; table.style.display = 'none'; return; }
+  empty.style.display = 'none'; table.style.display = 'table';
+
+  document.getElementById('log-tbody').innerHTML = filtered.map(function(e) {
+    var cpClass = e.category === 'FV' ? 'cp-fv' : 'cp-carne';
+    var catLabel = e.category === 'FV' ? '🥦 F&V' : '🥩 Carne';
+    var qtyStr = e.unit === 'KG' ? Number(e.qty).toFixed(2) + ' kg' : e.qty + ' buc';
+    return '<tr>'
+      + '<td class="date-cell">' + fmtDate(e.deliveryDate) + '</td>'
+      + '<td><span class="cat-pill ' + cpClass + '">' + catLabel + '</span></td>'
+      + '<td class="name-cell"><span title="' + e.productName + '">' + e.productName + '</span></td>'
+      + '<td class="code-cell">' + e.productCode + '</td>'
+      + '<td class="vc-cell">' + (e.vendorCode || '—') + '</td>'
+      + '<td class="qty-cell">' + qtyStr + '</td>'
+      + '<td><span class="reason-tag" title="' + e.reason + '">' + e.reason + '</span></td>'
+      + '<td><button class="del-btn" onclick="deleteEntry(' + e.id + ')">✕</button></td>'
+      + '</tr>';
+  }).join('');
+}
+
+function deleteEntry(id) {
+  entries = entries.filter(function(e) { return e.id !== id; });
+  saveEntries(); renderLog();
+  showToast('Înregistrare ștearsă', 'tinfo');
+}
+
+function clearAll() {
+  if (!entries.length) return;
+  if (!confirm('Ștergeți toate înregistrările?')) return;
+  entries = []; saveEntries(); renderLog();
+  showToast('Jurnal șters', 'tinfo');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EXPORT EXCEL
+// ═══════════════════════════════════════════════════════════════
+function exportExcel() {
+  var today = todayISO();
+  var data = entries.filter(function(e) { return e.deliveryDate === today; });
+  if (!data.length) {
+    showToast('Nu există înregistrări pentru azi (' + fmtDate(today) + ')', 'terror');
+    return;
+  }
+  var wb = XLSX.utils.book_new();
+  var headers = ['Data', 'Categorie', 'Cod articol', 'Cod furnizor', 'Denumire produs', 'GTIN', 'Cantitate respinsă', 'UM', 'Motiv'];
+  var rows = data.map(function(e) {
+    return [
+      fmtDate(e.deliveryDate), e.category, e.productCode, e.vendorCode || '',
+      e.productName, e.gtin || '',
+      e.unit === 'KG' ? parseFloat(Number(e.qty).toFixed(2)) : parseInt(e.qty),
+      e.unit === 'KG' ? 'kg' : 'buc', e.reason
+    ];
+  });
+  var ws = XLSX.utils.aoa_to_sheet([headers].concat(rows));
+  ws['!cols'] = [{wch:12},{wch:10},{wch:18},{wch:12},{wch:48},{wch:16},{wch:18},{wch:6},{wch:34}];
+  XLSX.utils.book_append_sheet(wb, ws, 'Respinse ' + fmtDate(today));
+
+  var catMap = {}, reasonMap = {};
+  data.forEach(function(e) {
+    catMap[e.category] = (catMap[e.category] || 0) + 1;
+    reasonMap[e.reason] = (reasonMap[e.reason] || 0) + 1;
+  });
+  var prodMap = {};
+  data.forEach(function(e) {
+    if (!prodMap[e.productCode]) prodMap[e.productCode] = { name: e.productName, code: e.productCode, vc: e.vendorCode || '', cat: e.category, n: 0 };
+    prodMap[e.productCode].n++;
+  });
+  var sumRows = [
+    ['RAPORT ZILNIC — ARTICOLE RESPINSE INBOUND'], [''],
+    ['Data livrare:', fmtDate(today)], ['Total înregistrări:', data.length],
+    ['F&V respinse:', catMap['FV'] || 0], ['Carne respinsă:', catMap['Carne'] || 0], [''],
+    ['TOP MOTIVE'], ['Motiv', 'Nr. înregistrări']
+  ].concat(
+    Object.entries(reasonMap).sort(function(a, b) { return b[1] - a[1]; }).map(function(x) { return [x[0], x[1]]; })
+  ).concat([
+    [''], ['TOP PRODUSE RESPINSE'], ['Produs', 'Cod articol', 'Cod furnizor', 'Categorie', 'Total']
+  ]).concat(
+    Object.values(prodMap).sort(function(a, b) { return b.n - a.n; }).map(function(x) { return [x.name, x.code, x.vc, x.cat, x.n]; })
+  );
+  var wsSummary = XLSX.utils.aoa_to_sheet(sumRows);
+  wsSummary['!cols'] = [{wch:44},{wch:18},{wch:12},{wch:12},{wch:10}];
+  XLSX.utils.book_append_sheet(wb, wsSummary, 'Sumar');
+  XLSX.writeFile(wb, 'respinse_inbound_' + today + '.xlsx');
+  showToast('✓ Excel exportat — ' + data.length + ' înregistrări');
+}
+
+function exportCSV() {
+  if (!entries.length) { showToast('Nu există date', 'terror'); return; }
+  var rows = [['Data','Categorie','Cod articol','Cod furnizor','Denumire','GTIN','Cantitate respinsa','UM','Motiv']];
+  entries.forEach(function(e) {
+    rows.push([fmtDate(e.deliveryDate), e.category, e.productCode, e.vendorCode || '',
+      e.productName, e.gtin || '',
+      e.unit === 'KG' ? Number(e.qty).toFixed(2) : e.qty,
+      e.unit === 'KG' ? 'kg' : 'buc', e.reason]);
+  });
+  var csv = rows.map(function(r) {
+    return r.map(function(v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(',');
+  }).join('\n');
+  var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = 'respinse_toate_' + todayISO() + '.csv';
+  a.click(); URL.revokeObjectURL(url);
+  showToast('✓ CSV exportat — ' + entries.length + ' înregistrări');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DB VIEW
+// ═══════════════════════════════════════════════════════════════
+function setDBFilter(f) {
+  curDBFilter = f;
+  ['all','FV','Carne'].forEach(function(id) {
+    var b = document.getElementById('dbtab-' + id);
+    if (b) b.className = 'db-tab';
+  });
+  var a = document.getElementById('dbtab-' + f);
+  if (!a) return;
+  if (f === 'FV') a.className = 'db-tab dt-fv';
+  else if (f === 'Carne') a.className = 'db-tab dt-carne';
+  else a.className = 'db-tab dt-active';
+  renderDB();
+}
+
+function renderDB() {
+  var q = document.getElementById('db-search').value.trim();
+  var nq = norm(q);
+  var pool = DB.slice();
+  if (curDBFilter !== 'all') pool = pool.filter(function(p) { return p.category === curDBFilter; });
+  if (q) pool = pool.filter(function(p) {
+    return norm(p.name).includes(nq) || norm(p.code).includes(nq)
+      || norm(p.vendorCode || '').includes(nq) || (p.gtin || '').includes(q)
+      || norm(p.supplier || '').includes(nq);
+  });
+
+  var fvN = DB.filter(function(p) { return p.category === 'FV'; }).length;
+  var carneN = DB.filter(function(p) { return p.category === 'Carne'; }).length;
+  document.getElementById('db-count-badge').textContent = DB.length + ' produse total';
+  document.getElementById('dbtab-FV').textContent = 'F&V (' + fvN + ')';
+  document.getElementById('dbtab-Carne').textContent = 'Carne (' + carneN + ')';
+  document.getElementById('db-shown').textContent = 'Afișate: ' + pool.length;
+
+  document.getElementById('db-tbody').innerHTML = pool.map(function(p) {
+    var cpClass = p.category === 'FV' ? 'cp-fv' : 'cp-carne';
+    var catLabel = p.category === 'FV' ? '🥦 F&V' : '🥩 Carne';
+    var unitColor = p.defaultUnit === 'KG' ? 'var(--warn)' : 'var(--accent2)';
+    var safeCode = p.code.replace(/'/g, "\\'");
+    var safeCat = p.category;
+    return '<tr>'
+      + '<td><span class="cat-pill ' + cpClass + '">' + catLabel + '</span></td>'
+      + '<td class="code-cell">' + hlText(p.code, q) + '</td>'
+      + '<td class="vc-cell">' + hlText(p.vendorCode || '—', q) + '</td>'
+      + '<td style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--accent2)">' + (p.gtin || '—') + '</td>'
+      + '<td class="name-cell"><span title="' + p.name + '">' + hlText(p.name, q) + '</span></td>'
+      + '<td><span style="font-family:\'DM Mono\',monospace;font-size:11px;color:' + unitColor + '">' + p.defaultUnit + '</span></td>'
+      + '<td style="font-size:11px;color:var(--muted)">' + (p.supplier || '') + '</td>'
+      + '<td style="white-space:nowrap">'
+      + '<button class="del-btn" style="font-size:11px" onclick="editProduct(\'' + safeCode + '\',\'' + safeCat + '\')">✎</button>'
+      + '<button class="del-btn" onclick="deleteProduct(\'' + safeCode + '\',\'' + safeCat + '\')">✕</button>'
+      + '</td></tr>';
+  }).join('');
+}
+
+function deleteProduct(code, cat) {
+  if (!confirm('Ștergeți produsul ' + code + '?')) return;
+  DB = DB.filter(function(p) { return !(p.code === code && p.category === cat); });
+  saveDB(); renderDB();
+  showToast('Produs șters', 'tinfo');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MODAL — ADD / EDIT
+// ═══════════════════════════════════════════════════════════════
+function openAddModal() {
+  editKey = null;
+  document.getElementById('modal-title').textContent = 'Adaugă produs nou';
+  document.getElementById('m-cat').value = 'FV';
+  document.getElementById('m-code').value = '';
+  document.getElementById('m-vc').value = '';
+  document.getElementById('m-gtin').value = '';
+  document.getElementById('m-name').value = '';
+  document.getElementById('m-unit').value = 'UNIT';
+  document.getElementById('m-supplier').value = 'Selgros';
+  document.getElementById('modal-product').classList.add('open');
+}
+
+function editProduct(code, cat) {
+  var p = DB.find(function(x) { return x.code === code && x.category === cat; });
+  if (!p) return;
+  editKey = { code: code, cat: cat };
+  document.getElementById('modal-title').textContent = 'Editează produs';
+  document.getElementById('m-cat').value = p.category;
+  document.getElementById('m-code').value = p.code;
+  document.getElementById('m-vc').value = p.vendorCode || '';
+  document.getElementById('m-gtin').value = p.gtin || '';
+  document.getElementById('m-name').value = p.name;
+  document.getElementById('m-unit').value = p.defaultUnit;
+  document.getElementById('m-supplier').value = p.supplier || '';
+  document.getElementById('modal-product').classList.add('open');
+}
+
+function closeModal() { document.getElementById('modal-product').classList.remove('open'); }
+
+function saveModal() {
+  var cat = document.getElementById('m-cat').value;
+  var code = document.getElementById('m-code').value.trim();
+  var vc = document.getElementById('m-vc').value.trim();
+  var gtin = document.getElementById('m-gtin').value.trim();
+  var name = document.getElementById('m-name').value.trim();
+  var unit = document.getElementById('m-unit').value;
+  var supplier = document.getElementById('m-supplier').value.trim();
+  if (!code || !name) { showToast('Codul și denumirea sunt obligatorii', 'terror'); return; }
+  var newP = { category: cat, code: code, vendorCode: vc, gtin: gtin, name: name, defaultUnit: unit, supplier: supplier };
+  if (editKey) {
+    var idx = DB.findIndex(function(p) { return p.code === editKey.code && p.category === editKey.cat; });
+    if (idx >= 0) DB[idx] = newP; else DB.push(newP);
+    showToast('✓ Produs actualizat');
+  } else {
+    if (DB.find(function(p) { return p.code === code && p.category === cat; })) {
+      showToast('Cod existent în categoria ' + cat, 'terror'); return;
+    }
+    DB.push(newP);
+    showToast('✓ Produs adăugat');
+  }
+  saveDB(); closeModal(); renderDB();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// XLSX IMPORT
+// ═══════════════════════════════════════════════════════════════
+function importXLSX(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var wb = XLSX.read(e.target.result, { type: 'array' });
+      var ws = wb.Sheets[wb.SheetNames[0]];
+      var rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      var data = rows.slice(1).filter(function(r) { return r[1] || r[4]; });
+      if (!data.length) { showToast('Nu s-au găsit date valide', 'terror'); return; }
+      pendingImport = data.map(function(r) {
+        return {
+          category: String(r[0] || 'FV').trim(),
+          code: String(r[1] || '').trim(),
+          vendorCode: String(r[2] || '').trim(),
+          gtin: String(r[3] || '').trim(),
+          name: String(r[4] || '').trim(),
+          defaultUnit: String(r[5] || 'UNIT').trim().toUpperCase() === 'KG' ? 'KG' : 'UNIT',
+          supplier: String(r[6] || 'Selgros').trim()
+        };
+      }).filter(function(p) { return p.code && p.name; });
+
+      var newCount = pendingImport.filter(function(p) {
+        return !DB.find(function(x) { return x.code === p.code && x.category === p.category; });
+      }).length;
+      var updCount = pendingImport.length - newCount;
+      document.getElementById('import-preview').innerHTML =
+        '<b>' + pendingImport.length + '</b> produse detectate: '
+        + '<span style="color:var(--accent)">' + newCount + ' noi</span>, '
+        + '<span style="color:var(--warn)">' + updCount + ' actualizări</span>';
+      document.getElementById('btn-confirm-import').style.display = '';
+      document.getElementById('modal-import').classList.add('open');
+    } catch(err) {
+      showToast('Eroare: ' + err.message, 'terror');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  input.value = '';
+}
+
+function closeImportModal() {
+  document.getElementById('modal-import').classList.remove('open');
+  pendingImport = null;
+}
+
+function confirmImport() {
+  if (!pendingImport) return;
+  var added = 0, updated = 0;
+  pendingImport.forEach(function(p) {
+    var idx = DB.findIndex(function(x) { return x.code === p.code && x.category === p.category; });
+    if (idx >= 0) { DB[idx] = p; updated++; } else { DB.push(p); added++; }
+  });
+  saveDB(); closeImportModal(); renderDB();
+  showToast('✓ ' + added + ' adăugate, ' + updated + ' actualizate');
+}
+
+function exportDB() {
+  var blob = new Blob([JSON.stringify(DB, null, 2)], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = 'produse_db_' + todayISO() + '.json';
+  a.click(); URL.revokeObjectURL(url);
+  showToast('✓ DB exportată (' + DB.length + ' produse)');
+}
+
+function resetDB() {
+  if (!confirm('Resetați baza de date la valorile originale? Modificările vor fi pierdute.')) return;
+  DB = buildDefaultDB(); saveDB(); renderDB();
+  showToast('Baza de date resetată — ' + DB.length + ' produse', 'tinfo');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LIVE DATE + INIT
+// ═══════════════════════════════════════════════════════════════
+function updDate() {
+  var d = new Date();
+  document.getElementById('live-date').textContent =
+    d.toLocaleDateString('ro-RO', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+    + '  ' + d.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
+}
+updDate();
+setInterval(updDate, 30000);
+renderLog();
+initOfflineQueue();
+initOnlineStatus();
+
+// ═══════════════════════════════════════════════════════════════
+// MOBILE TABS
+// ═══════════════════════════════════════════════════════════════
+function setMobileTab(tab) {
+  var form = document.querySelector('.panel-left');
+  var log  = document.querySelector('.panel-right');
+  document.getElementById('mobtab-form').className = 'mob-tab' + (tab === 'form' ? ' active' : '');
+  document.getElementById('mobtab-log').className  = 'mob-tab' + (tab === 'log'  ? ' active' : '');
+  if (tab === 'form') {
+    form.style.display = '';
+    log.classList.remove('mobile-active');
+  } else {
+    form.style.display = 'none';
+    log.classList.add('mobile-active');
+    renderLog();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// OFFLINE QUEUE
+// ═══════════════════════════════════════════════════════════════
+var offlineQueue = (function() {
+  try { return JSON.parse(localStorage.getItem('inbound_offline_queue') || '[]'); }
+  catch(e) { return []; }
+})();
+
+function saveQueue() {
+  localStorage.setItem('inbound_offline_queue', JSON.stringify(offlineQueue));
+}
+
+function initOfflineQueue() {
+  // Try to flush any queued entries on load
+  if (offlineQueue.length > 0 && navigator.onLine) {
+    flushQueue();
+  }
+  updateQueueBadge();
+}
+
+function flushQueue() {
+  if (!offlineQueue.length) return;
+  var batch = offlineQueue.slice();
+  var flushed = 0;
+  batch.forEach(function(entry) {
+    fetch(SHEETS_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(entry)
+    }).then(function() {
+      flushed++;
+      offlineQueue = offlineQueue.filter(function(e) { return e._qid !== entry._qid; });
+      saveQueue();
+      updateQueueBadge();
+      if (flushed === batch.length) {
+        showToast('✓ ' + flushed + ' înregistrări sincronizate', 'tinfo');
+      }
+    }).catch(function() {});
+  });
+}
+
+function updateQueueBadge() {
+  var badge = document.getElementById('queue-badge');
+  if (!badge) return;
+  if (offlineQueue.length > 0) {
+    badge.textContent = '⏳ ' + offlineQueue.length + ' nesincronizat' + (offlineQueue.length > 1 ? 'e' : '');
+    badge.style.display = '';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ONLINE STATUS
+// ═══════════════════════════════════════════════════════════════
+function initOnlineStatus() {
+  window.addEventListener('online', function() {
+    var badge = document.getElementById('online-badge');
+    if (badge) { badge.textContent = '📊 Sheets activ'; badge.style.background = 'rgba(111,207,151,.1)'; badge.style.color = 'var(--accent2)'; badge.style.borderColor = 'rgba(111,207,151,.2)'; }
+    flushQueue();
+  });
+  window.addEventListener('offline', function() {
+    var badge = document.getElementById('online-badge');
+    if (badge) { badge.textContent = '📴 Offline — se salvează local'; badge.style.background = 'rgba(245,166,35,.1)'; badge.style.color = 'var(--warn)'; badge.style.borderColor = 'rgba(245,166,35,.3)'; }
+  });
+  if (!navigator.onLine) {
+    var badge = document.getElementById('online-badge');
+    if (badge) { badge.textContent = '📴 Offline — se salvează local'; badge.style.background = 'rgba(245,166,35,.1)'; badge.style.color = 'var(--warn)'; badge.style.borderColor = 'rgba(245,166,35,.3)'; }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BARCODE SCANNER
+// ═══════════════════════════════════════════════════════════════
+var scannerStream = null;
+var scannerInterval = null;
+
+function openScanner() {
+  var modal = document.getElementById('scanner-modal');
+  modal.style.display = 'flex';
+  var video = document.getElementById('scanner-video');
+  var resultEl = document.getElementById('scanner-result');
+  resultEl.textContent = 'Pornire cameră…';
+
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+    .then(function(stream) {
+      scannerStream = stream;
+      video.srcObject = stream;
+      video.play();
+      resultEl.textContent = 'Poziționați barcod-ul…';
+
+      // Use BarcodeDetector if available (Chrome/Android)
+      if ('BarcodeDetector' in window) {
+        var detector = new BarcodeDetector({ formats: ['ean_13','ean_8','code_128','code_39','upc_a','upc_e'] });
+        scannerInterval = setInterval(function() {
+          if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            detector.detect(video).then(function(barcodes) {
+              if (barcodes.length > 0) {
+                var code = barcodes[0].rawValue;
+                handleScannedCode(code);
+              }
+            }).catch(function() {});
+          }
+        }, 300);
+      } else {
+        // Fallback: manual entry prompt
+        resultEl.innerHTML = 'Camera activa. BarcodeDetector indisponibil pe acest browser.<br>Introduceți GTIN manual în câmpul de căutare.';
+      }
+    })
+    .catch(function(err) {
+      resultEl.textContent = 'Eroare cameră: ' + err.message;
+    });
+}
+
+function handleScannedCode(code) {
+  closeScanner();
+  var searchEl = document.getElementById('product-search');
+  searchEl.value = code;
+  searchEl.dispatchEvent(new Event('input'));
+  showToast('GTIN scanat: ' + code);
+}
+
+function closeScanner() {
+  var modal = document.getElementById('scanner-modal');
+  modal.style.display = 'none';
+  if (scannerInterval) { clearInterval(scannerInterval); scannerInterval = null; }
+  if (scannerStream) {
+    scannerStream.getTracks().forEach(function(t) { t.stop(); });
+    scannerStream = null;
+  }
+}
+
+</script>
+</body>
+</html>
